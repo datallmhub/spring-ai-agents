@@ -1,9 +1,43 @@
 # Recipe — ReAct loop
 
 A ReAct agent alternates *reasoning* and *acting* until it decides it is done.
-Implement it as a single node whose outgoing edge loops back to itself until a
-flag in the shared state says `done == true`. The graph's `maxIterations` guard
-prevents runaway loops.
+Two ways to build it:
+
+1. **`ReActAgent` wrapper (v0.2+)** — preferred for a single self-looping agent.
+2. **Self-referencing edge** — use when the loop is one node inside a larger
+   graph and you want to reuse the graph's own `maxIterations` guard.
+
+## Option 1 — `ReActAgent` (v0.2+)
+
+```java
+import io.github.asekka.springai.agents.core.*;
+import io.github.asekka.springai.agents.squad.*;
+
+Agent reasoner = ExecutorAgent.builder()
+        .chatClient(chatClient)
+        .systemPrompt("""
+                Reply with JSON: {"final": true|false, "answer": "..."}.
+                Set final=true only when the answer is complete.
+                """)
+        .tools(webSearchTool, calculatorTool)
+        .build();
+
+ReActAgent loop = ReActAgent.builder()
+        .inner(reasoner)
+        .maxSteps(6)
+        .stopWhen((ctx, res) -> res.text() != null && res.text().contains("\"final\": true"))
+        .build();
+
+AgentResult result = loop.execute(AgentContext.of("Which city in France had the most sunshine last July?"));
+```
+
+`ReActAgent` automatically calls `context.applyResult(result)` between
+iterations, so the assistant message is appended to the conversation before
+the next call. The loop stops when `stopWhen` returns true (default:
+`result.completed()`) or when `maxSteps` is reached (which yields an
+`AgentResult.failed(...)`).
+
+## Option 2 — Self-edge inside a graph
 
 ```java
 import io.github.asekka.springai.agents.core.*;

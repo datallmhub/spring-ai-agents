@@ -232,4 +232,40 @@ class AgentGraphTests {
         AgentResult result = graph.invoke(AgentContext.empty());
         assertThat(result.hasError()).isTrue();
     }
+
+    @Test
+    void onResultEdgeRoutesBasedOnLastResultText() {
+        Agent classify = ctx -> AgentResult.ofText("needs-review");
+        Agent review = ctx -> AgentResult.ofText("reviewed");
+        Agent ship = ctx -> AgentResult.ofText("shipped");
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("classify", classify)
+                .addNode("review", review)
+                .addNode("ship", ship)
+                .addEdge(Edge.onResult("classify",
+                        (c, r) -> "needs-review".equals(r.text()), "review"))
+                .addEdge(Edge.direct("classify", "ship"))
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("reviewed");
+    }
+
+    @Test
+    void onResultEdgeFallsThroughToDirectWhenPredicateFalse() {
+        Agent classify = ctx -> AgentResult.ofText("ok");
+        Agent ship = ctx -> AgentResult.ofText("shipped");
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("classify", classify)
+                .addNode("ship", ship)
+                .addEdge(Edge.onResult("classify",
+                        (c, r) -> "needs-review".equals(r.text()), "classify"))
+                .addEdge(Edge.direct("classify", "ship"))
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("shipped");
+    }
 }

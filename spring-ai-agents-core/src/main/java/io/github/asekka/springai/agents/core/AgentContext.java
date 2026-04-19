@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 
@@ -77,7 +78,16 @@ public final class AgentContext {
         StateBag mergedState = result.stateUpdates().isEmpty()
                 ? state
                 : state.merge(result.stateUpdates());
-        return new AgentContext(messages, mergedState);
+
+        List<Message> nextMessages = messages;
+        String text = result.text();
+        if (!result.hasError() && text != null && !text.isBlank()) {
+            List<Message> appended = new ArrayList<>(messages.size() + 1);
+            appended.addAll(messages);
+            appended.add(new AssistantMessage(text));
+            nextMessages = Collections.unmodifiableList(appended);
+        }
+        return new AgentContext(nextMessages, mergedState);
     }
 
     @Override

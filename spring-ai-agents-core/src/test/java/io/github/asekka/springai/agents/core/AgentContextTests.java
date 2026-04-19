@@ -44,4 +44,32 @@ class AgentContextTests {
 
         assertThat(next.get(USER_ID)).isEqualTo("u-42");
     }
+
+    @Test
+    void applyResultAppendsAssistantMessageWhenTextPresent() {
+        AgentContext ctx = AgentContext.of("hi");
+        AgentContext next = ctx.applyResult(AgentResult.ofText("hello"));
+
+        assertThat(next.messages()).hasSize(2);
+        assertThat(next.messages().get(1)).isInstanceOf(AssistantMessage.class);
+        assertThat(next.messages().get(1).getText()).isEqualTo("hello");
+    }
+
+    @Test
+    void applyResultSkipsAssistantMessageOnError() {
+        AgentContext ctx = AgentContext.of("hi");
+        AgentResult failed = AgentResult.failed(AgentError.of("n", new RuntimeException("x")));
+        AgentContext next = ctx.applyResult(failed);
+
+        assertThat(next.messages()).hasSize(1);
+    }
+
+    @Test
+    void applyResultSkipsAssistantMessageOnBlankText() {
+        AgentContext ctx = AgentContext.of("hi");
+        AgentResult empty = AgentResult.builder().text("   ").build();
+        AgentContext next = ctx.applyResult(empty);
+
+        assertThat(next.messages()).hasSize(1);
+    }
 }

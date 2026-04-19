@@ -16,9 +16,19 @@ A multi-agent orchestration layer for Spring AI, inspired by LangGraph / CrewAI
 <dependency>
     <groupId>io.github.asekka</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
+
+## What's in 0.2
+
+- `AgentContext.applyResult()` now appends the assistant message automatically — no more
+  manual `withMessage(new AssistantMessage(...))` between nodes.
+- `Edge.onResult(from, (ctx, result) -> ..., to)` — route based on the last node's
+  `AgentResult`, not only the context.
+- `ReActAgent` — wrap any `Agent` into a loop that keeps calling the inner agent
+  until `result.completed() == true` (or a custom `stopWhen` predicate), up to
+  `maxSteps`. The intermediate assistant messages accumulate in the context.
 
 ## 60-second example
 

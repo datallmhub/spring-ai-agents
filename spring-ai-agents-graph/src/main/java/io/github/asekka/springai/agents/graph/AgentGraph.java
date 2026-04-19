@@ -99,7 +99,7 @@ public final class AgentGraph {
                 lastResult = outcome.result;
             }
 
-            currentNode = nextNode(currentNode, context).orElse(null);
+            currentNode = nextNode(currentNode, context, lastResult).orElse(null);
         }
 
         AgentResult finalResult = lastResult != null ? lastResult : AgentResult.ofText(null);
@@ -150,7 +150,7 @@ public final class AgentGraph {
                     }
 
                     previousNode = currentNode;
-                    currentNode = nextNode(currentNode, context).orElse(null);
+                    currentNode = nextNode(currentNode, context, lastResult).orElse(null);
                 }
 
                 AgentResult finalResult = lastResult != null ? lastResult : AgentResult.ofText(null);
@@ -245,11 +245,16 @@ public final class AgentGraph {
         }
     }
 
-    private Optional<String> nextNode(String from, AgentContext context) {
+    private Optional<String> nextNode(String from, AgentContext context, AgentResult lastResult) {
         String directFallback = null;
         for (Edge edge : edges) {
             if (!edge.from().equals(from)) {
                 continue;
+            }
+            if (edge instanceof Edge.OnResult onResult
+                    && lastResult != null
+                    && onResult.matches(context, lastResult)) {
+                return Optional.of(onResult.to());
             }
             if (edge instanceof Edge.Conditional cond && cond.matches(context)) {
                 return Optional.of(cond.to());
