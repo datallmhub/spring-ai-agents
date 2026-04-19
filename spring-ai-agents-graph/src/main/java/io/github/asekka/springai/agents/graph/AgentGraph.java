@@ -14,6 +14,8 @@ import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.lang.Nullable;
 import reactor.core.publisher.Flux;
 
 public final class AgentGraph {
@@ -27,6 +29,8 @@ public final class AgentGraph {
     private final ErrorPolicy errorPolicy;
     private final int maxIterations;
     private final List<AgentListener> listeners;
+    @Nullable
+    private final CheckpointStore checkpointStore;
 
     private AgentGraph(Builder b) {
         this.name = b.name;
@@ -37,6 +41,7 @@ public final class AgentGraph {
         this.errorPolicy = b.errorPolicy;
         this.maxIterations = b.maxIterations;
         this.listeners = List.copyOf(b.listeners);
+        this.checkpointStore = b.checkpointStore;
 
         validate();
     }
@@ -65,11 +70,44 @@ public final class AgentGraph {
 
     public AgentResult invoke(AgentContext initial) {
         Objects.requireNonNull(initial, "initial");
+        return run(initial, entryNode, 0, null);
+    }
 
-        AgentContext context = initial;
-        String currentNode = entryNode;
+    public AgentResult invoke(AgentContext initial, String runId) {
+        Objects.requireNonNull(initial, "initial");
+        Objects.requireNonNull(runId, "runId");
+        CheckpointStore store = requireCheckpointStore();
+        store.save(new Checkpoint(runId, entryNode, initial, 0, null));
+        return run(initial, entryNode, 0, runId);
+    }
+
+    public AgentResult resume(String runId, Message... additional) {
+        Objects.requireNonNull(runId, "runId");
+        CheckpointStore store = requireCheckpointStore();
+        Checkpoint cp = store.load(runId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No checkpoint found for runId=" + runId));
+        AgentContext context = cp.context();
+        if (additional != null && additional.length > 0) {
+            context = context.withMessages(List.of(additional));
+        }
+        return run(context, cp.nextNode(), cp.iterations(), runId);
+    }
+
+    private CheckpointStore requireCheckpointStore() {
+        if (checkpointStore == null) {
+            throw new IllegalStateException(
+                    "AgentGraph has no CheckpointStore; configure one via Builder.checkpointStore(...)");
+        }
+        return checkpointStore;
+    }
+
+    private AgentResult run(AgentContext context, String startNode,
+                            int startIterations, @Nullable String runId) {
+        String currentNode = startNode;
         AgentResult lastResult = null;
-        int iterations = 0;
+        int iterations = startIterations;
+        CheckpointStore store = checkpointStore;
 
         while (currentNode != null) {
             if (++iterations > maxIterations) {
@@ -91,7 +129,6 @@ public final class AgentGraph {
                     notifyGraphComplete(outcome.result);
                     return outcome.result;
                 }
-                // SKIP_NODE: continue without applying state updates, try next edge
                 lastResult = outcome.result;
             }
             else {
@@ -99,7 +136,27 @@ public final class AgentGraph {
                 lastResult = outcome.result;
             }
 
-            currentNode = nextNode(currentNode, context, lastResult).orElse(null);
+            if (outcome.result.isInterrupted()) {
+                if (runId != null && store != null) {
+                    store.save(new Checkpoint(runId, currentNode, context,
+                            iterations - 1, outcome.result.interrupt()));
+                }
+                notifyGraphComplete(outcome.result);
+                return outcome.result;
+            }
+
+            String next = nextNode(currentNode, context, lastResult).orElse(null);
+
+            if (runId != null && store != null) {
+                if (next != null) {
+                    store.save(new Checkpoint(runId, next, context, iterations, null));
+                }
+                else {
+                    store.delete(runId);
+                }
+            }
+
+            currentNode = next;
         }
 
         AgentResult finalResult = lastResult != null ? lastResult : AgentResult.ofText(null);
@@ -304,6 +361,8 @@ public final class AgentGraph {
         private ErrorPolicy errorPolicy = ErrorPolicy.FAIL_FAST;
         private int maxIterations = 25;
         private final List<AgentListener> listeners = new ArrayList<>();
+        @Nullable
+        private CheckpointStore checkpointStore;
 
         public Builder name(String name) {
             this.name = Objects.requireNonNull(name, "name");
@@ -355,6 +414,11 @@ public final class AgentGraph {
 
         public Builder listener(AgentListener listener) {
             listeners.add(Objects.requireNonNull(listener, "listener"));
+            return this;
+        }
+
+        public Builder checkpointStore(CheckpointStore store) {
+            this.checkpointStore = Objects.requireNonNull(store, "store");
             return this;
         }
 

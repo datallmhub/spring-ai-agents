@@ -16,19 +16,29 @@ A multi-agent orchestration layer for Spring AI, inspired by LangGraph / CrewAI
 <dependency>
     <groupId>io.github.asekka</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
 </dependency>
 ```
 
+## What's in 0.3
+
+- **Human-in-the-loop**: a node can return `AgentResult.interrupted("reason")`.
+  The graph halts, persists a `Checkpoint` (if a `CheckpointStore` is configured),
+  and returns the interrupted result. Call `graph.resume(runId, new UserMessage("..."))`
+  to re-enter the same node with the new messages appended.
+- **Checkpointing**: `AgentGraph.builder().checkpointStore(new InMemoryCheckpointStore())`
+  enables automatic snapshots after every node when you start a run with
+  `graph.invoke(ctx, runId)`. Successful runs delete their checkpoint on completion.
+- **Supervisor pattern**: wrap a `CoordinatorAgent` in a `ReActAgent` — the
+  coordinator re-routes on every iteration until a stop condition is met.
+  See [supervisor-pattern.md](recipes/supervisor-pattern.md).
+
 ## What's in 0.2
 
-- `AgentContext.applyResult()` now appends the assistant message automatically — no more
-  manual `withMessage(new AssistantMessage(...))` between nodes.
+- `AgentContext.applyResult()` now appends the assistant message automatically.
 - `Edge.onResult(from, (ctx, result) -> ..., to)` — route based on the last node's
-  `AgentResult`, not only the context.
-- `ReActAgent` — wrap any `Agent` into a loop that keeps calling the inner agent
-  until `result.completed() == true` (or a custom `stopWhen` predicate), up to
-  `maxSteps`. The intermediate assistant messages accumulate in the context.
+  `AgentResult`.
+- `ReActAgent` — wrap any `Agent` into a self-looping agent.
 
 ## 60-second example
 

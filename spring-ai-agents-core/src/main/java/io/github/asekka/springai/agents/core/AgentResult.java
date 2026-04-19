@@ -13,7 +13,8 @@ public record AgentResult(
         @Nullable Object structuredOutput,
         Map<StateKey<?>, Object> stateUpdates,
         boolean completed,
-        @Nullable AgentError error) {
+        @Nullable AgentError error,
+        @Nullable InterruptRequest interrupt) {
 
     public AgentResult {
         toolCalls = toolCalls == null ? List.of() : List.copyOf(toolCalls);
@@ -29,12 +30,25 @@ public record AgentResult(
         return new Builder().error(error).completed(false).build();
     }
 
+    public static AgentResult interrupted(String reason) {
+        return interrupted(InterruptRequest.of(reason));
+    }
+
+    public static AgentResult interrupted(InterruptRequest request) {
+        Objects.requireNonNull(request, "request");
+        return new Builder().interrupt(request).completed(false).build();
+    }
+
     public boolean hasError() {
         return error != null;
     }
 
     public boolean hasToolCalls() {
         return !toolCalls.isEmpty();
+    }
+
+    public boolean isInterrupted() {
+        return interrupt != null;
     }
 
     public static Builder builder() {
@@ -48,6 +62,7 @@ public record AgentResult(
         private Map<StateKey<?>, Object> stateUpdates = Map.of();
         private boolean completed = true;
         private AgentError error;
+        private InterruptRequest interrupt;
 
         public Builder text(String text) {
             this.text = text;
@@ -79,8 +94,19 @@ public record AgentResult(
             return this;
         }
 
+        public Builder interrupt(InterruptRequest interrupt) {
+            this.interrupt = interrupt;
+            return this;
+        }
+
+        public Builder interrupt(String reason) {
+            this.interrupt = InterruptRequest.of(reason);
+            return this;
+        }
+
         public AgentResult build() {
-            return new AgentResult(text, toolCalls, structuredOutput, stateUpdates, completed, error);
+            return new AgentResult(text, toolCalls, structuredOutput, stateUpdates,
+                    completed, error, interrupt);
         }
     }
 }

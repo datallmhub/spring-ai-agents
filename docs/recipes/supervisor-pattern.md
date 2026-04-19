@@ -71,3 +71,28 @@ AgentGraph.builder()
         .addEdge("supervise", "review")
         .build();
 ```
+
+## Supervisor loop (v0.3+)
+
+A single call to `CoordinatorAgent.execute()` picks one executor and returns
+its result. To get the classic "supervisor that keeps re-routing until the work
+is done" pattern, wrap the coordinator in a `ReActAgent`:
+
+```java
+ReActAgent supervisorLoop = ReActAgent.builder()
+        .inner(supervisor)
+        .maxSteps(8)
+        .stopWhen((ctx, res) -> res.completed() && res.text() != null
+                && res.text().startsWith("FINAL:"))
+        .build();
+```
+
+Each iteration:
+1. `supervisor` re-inspects the growing conversation (assistant messages from
+   previous rounds are appended automatically by `AgentContext.applyResult`).
+2. Its `RoutingStrategy` picks the next executor.
+3. The executor runs and returns its result.
+4. The loop exits when `stopWhen` matches or `maxSteps` is hit.
+
+Combine with [human-in-the-loop](human-in-the-loop.md) to let a reviewer
+approve the supervisor's plan mid-flight.
