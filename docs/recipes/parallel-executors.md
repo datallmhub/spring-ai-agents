@@ -1,37 +1,48 @@
 # Recipe — Parallel executors
 
-V1's `AgentGraph` executes one node at a time. For fan-out / gather scenarios
-(e.g. ask N specialists, merge answers), wrap the parallelism inside a single
-composite `Agent` that uses Reactor.
+Starting in 0.4 the squad module ships `ParallelAgent`, a built-in fan-out /
+gather `Agent` that runs N branches concurrently and joins their results via a
+`Combiner`. No hand-rolled Reactor plumbing required.
 
 ```java
-import io.github.asekka.springai.agents.core.*;
-import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
+import io.github.asekka.springai.agents.core.Agent;
+import io.github.asekka.springai.agents.core.AgentContext;
+import io.github.asekka.springai.agents.core.AgentResult;
+import io.github.asekka.springai.agents.squad.ParallelAgent;
 
-record ParallelAgent(String name, List<Agent> members) implements Agent {
+Agent fanOut = ParallelAgent.builder()
+        .name("fan-out")
+        .branch("legal", legalAgent)
+        .branch("finance", financeAgent)
+        .branch("hr", hrAgent)
+        .combiner(ParallelAgent.Combiner.concatTexts("\n---\n"))
+        .timeout(Duration.ofSeconds(30))
+        .build();
 
-    @Override
-    public AgentResult execute(AgentContext context) {
-        List<String> answers = Flux.fromIterable(members)
-                .parallel()
-                .runOn(Schedulers.boundedElastic())
-                .map(a -> a.execute(context))
-                .sequential()
-                .map(AgentResult::text)
-                .collectList()
-                .block();
-
-        return AgentResult.ofText(String.join("\n---\n", answers));
-    }
-}
+AgentResult result = fanOut.execute(AgentContext.of("What's blocking Q3?"));
 ```
 
-Then compose as usual:
+Branches run on a bounded thread pool (`min(N, 8)`). The iteration order is the
+declaration order — combiners receive an ordered `Map<String, AgentResult>`.
+
+## Combining results
+
+`Combiner.concatTexts(separator)` is the built-in default: it joins branch texts
+and sums their `AgentUsage` into the final result. For anything else, implement
+the interface directly:
 
 ```java
-Agent fanOut = new ParallelAgent("fan-out", List.of(legalAgent, financeAgent, hrAgent));
+ParallelAgent.Combiner pickBestScore = (ctx, perBranch) -> perBranch.values().stream()
+        .filter(r -> !r.hasError())
+        .max(Comparator.comparingInt(r -> parseScore(r.text())))
+        .orElseGet(() -> AgentResult.ofText("no branch succeeded"));
+```
 
+## Composing with a graph
+
+`ParallelAgent` is just an `Agent`, so drop it in as a node:
+
+```java
 AgentGraph graph = AgentGraph.builder()
         .addNode("fan-out", fanOut)
         .addNode("synthesize", synthesizer)
@@ -39,12 +50,31 @@ AgentGraph graph = AgentGraph.builder()
         .build();
 ```
 
+## Error handling
+
+A branch that throws surfaces as an `AgentResult.failed(...)` for that branch —
+the other branches still complete and the combiner sees all results. If you want
+the whole fan-out to fail when any branch fails, filter in your `Combiner`:
+
+```java
+ParallelAgent.Combiner failOnAny = (ctx, perBranch) -> perBranch.entrySet().stream()
+        .filter(e -> e.getValue().hasError())
+        .findFirst()
+        .map(e -> e.getValue())
+        .orElseGet(() -> ParallelAgent.Combiner.concatTexts("\n").combine(ctx, perBranch));
+```
+
+The overall `timeout` is enforced on the join: if it elapses before all
+branches complete, `ParallelAgent` returns a failed result carrying a
+`TimeoutException`.
+
 ## Trade-offs
 
-- **Pros.** Keeps the public graph API simple. Parallelism is local to one node
-  and doesn't leak into the orchestration model.
-- **Cons.** No cross-branch state merging — the parallel node produces a single
-  merged result. If you need per-branch state in the graph, wait for V2's squad
-  extensions.
-- **Tool calls.** Each member's `ChatClient` is independent; rate limits apply
-  per-provider. Use a bounded scheduler to cap concurrency.
+- **Pros.** Declarative fan-out, ordered results, usage summed automatically,
+  timeout built in.
+- **Cons.** No cross-branch state merging during execution — branches share the
+  inbound `AgentContext` (read-only as far as the others are concerned). If you
+  need per-branch state propagated back into the graph, merge it inside your
+  `Combiner` via `AgentResult.Builder.stateUpdates(...)`.
+- **Tool calls.** Each branch's `ChatClient` is independent; provider rate
+  limits apply per-branch. The bounded pool (max 8 concurrent) caps load.

@@ -12,6 +12,15 @@ import io.github.asekka.springai.agents.core.AgentResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A routing agent that selects exactly one subordinate executor to handle the
+ * request for the current execution step, based on a {@link RoutingStrategy}.
+ *
+ * <p>By default, this acts as a dynamic dispatcher (often called a "Supervisor" in
+ * multi-agent patterns). It does not break down tasks into parallel executions or
+ * aggregate results on its own. To achieve a continuous supervisor loop, wrap this
+ * agent inside a {@link ReActAgent}.
+ */
 public final class CoordinatorAgent implements Agent {
 
     private static final Logger log = LoggerFactory.getLogger(CoordinatorAgent.class);
@@ -53,7 +62,7 @@ public final class CoordinatorAgent implements Agent {
                     new IllegalStateException("Router returned unknown executor: " + chosen)));
         }
 
-        log.debug("Coordinator '{}' routing to executor '{}'", name, chosen);
+        log.info("coordinator.route: coordinator={} executor={}", name, chosen);
         try {
             return executor.execute(context);
         }

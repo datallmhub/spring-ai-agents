@@ -14,7 +14,8 @@ public record AgentResult(
         Map<StateKey<?>, Object> stateUpdates,
         boolean completed,
         @Nullable AgentError error,
-        @Nullable InterruptRequest interrupt) {
+        @Nullable InterruptRequest interrupt,
+        @Nullable AgentUsage usage) {
 
     public AgentResult {
         toolCalls = toolCalls == null ? List.of() : List.copyOf(toolCalls);
@@ -63,6 +64,7 @@ public record AgentResult(
         private boolean completed = true;
         private AgentError error;
         private InterruptRequest interrupt;
+        private AgentUsage usage;
 
         public Builder text(String text) {
             this.text = text;
@@ -104,9 +106,14 @@ public record AgentResult(
             return this;
         }
 
+        public Builder usage(AgentUsage usage) {
+            this.usage = usage;
+            return this;
+        }
+
         public AgentResult build() {
             return new AgentResult(text, toolCalls, structuredOutput, stateUpdates,
-                    completed, error, interrupt);
+                    completed, error, interrupt, usage);
         }
     }
 }

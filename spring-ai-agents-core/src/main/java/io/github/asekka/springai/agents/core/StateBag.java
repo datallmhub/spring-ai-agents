@@ -41,6 +41,20 @@ public final class StateBag {
         return new StateBag(Collections.unmodifiableMap(next));
     }
 
+    /**
+     * Returns a new {@code StateBag} without the given key.
+     * If the key is not present, returns {@code this} unchanged.
+     */
+    public <T> StateBag remove(StateKey<T> key) {
+        Objects.requireNonNull(key, "key");
+        if (!entries.containsKey(key)) {
+            return this;
+        }
+        Map<StateKey<?>, Object> next = new LinkedHashMap<>(entries);
+        next.remove(key);
+        return new StateBag(Collections.unmodifiableMap(next));
+    }
+
     public StateBag merge(Map<StateKey<?>, Object> updates) {
         if (updates == null || updates.isEmpty()) {
             return this;

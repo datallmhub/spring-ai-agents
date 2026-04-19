@@ -16,9 +16,24 @@ A multi-agent orchestration layer for Spring AI, inspired by LangGraph / CrewAI
 <dependency>
     <groupId>io.github.asekka</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
 </dependency>
 ```
+
+## What's in 0.4
+
+- **Subgraphs**: `AgentGraph` now implements `Agent`, so any graph can be plugged
+  in as a node of another graph. Compose sub-pipelines without ceremony.
+- **Usage accounting**: `AgentResult.usage()` carries an `AgentUsage(promptTokens,
+  completionTokens, totalTokens)`. `ExecutorAgent` extracts it from Spring AI's
+  `ChatResponse` metadata; `ParallelAgent`'s default combiner sums it across
+  branches.
+- **Parallel fan-out**: `ParallelAgent` runs N agents concurrently and joins
+  their results through a `Combiner`. See
+  [recipes/parallel-executors.md](recipes/parallel-executors.md).
+- **Cancellation**: `graph.invoke(ctx, Duration.ofSeconds(30))` bounds the run
+  with a deadline. Thread-interrupt is also honored between nodes — both surface
+  as a failed `AgentResult` carrying the originating node.
 
 ## What's in 0.3
 
@@ -108,11 +123,13 @@ spring:
 
 Properties are bound by `spring-ai-agents-starter`. When a `MeterRegistry` bean
 is present, the starter registers a `MicrometerAgentListener` that emits
-`agents.execution.count`, `agents.execution.duration`, and
-`agents.execution.errors`.
+`agents.execution.count`, `agents.execution.duration`, `agents.graph.transitions`,
+and `agents.execution.errors`.
 
 ## Next steps
 
 - [Recipe: ReAct loop](recipes/react-loop.md)
 - [Recipe: Supervisor pattern](recipes/supervisor-pattern.md)
 - [Recipe: Parallel executors](recipes/parallel-executors.md)
+- [Recipe: Subgraphs](recipes/subgraphs.md)
+- [Recipe: Human-in-the-loop](recipes/human-in-the-loop.md)

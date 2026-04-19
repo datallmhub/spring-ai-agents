@@ -20,6 +20,70 @@ class AgentGraphTests {
 
     private static final StateKey<String> TRACE = StateKey.of("trace", String.class);
 
+    @Test
+    void invokeWithTimeoutFailsBeforeEnteringNextNodeOnceDeadlineExceeded() {
+        Agent slow = ctx -> {
+            try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+            return AgentResult.ofText("slow");
+        };
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("a", slow)
+                .addNode("b", ctx -> AgentResult.ofText("b"))
+                .addEdge("a", "b")
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.of("go"), java.time.Duration.ofMillis(50));
+        assertThat(result.hasError()).isTrue();
+        assertThat(result.error().cause()).isInstanceOf(java.util.concurrent.TimeoutException.class);
+    }
+
+    @Test
+    void invokeRespectsThreadInterrupt() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<AgentResult> ref = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+
+        Agent slow = ctx -> {
+            entered.countDown();
+            try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            return AgentResult.ofText("done");
+        };
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("a", slow)
+                .addNode("b", ctx -> AgentResult.ofText("b"))
+                .addEdge("a", "b")
+                .build();
+
+        Thread t = new Thread(() -> ref.set(graph.invoke(AgentContext.of("go"))));
+        t.start();
+        entered.await();
+        t.interrupt();
+        t.join(2000);
+
+        assertThat(ref.get().hasError()).isTrue();
+    }
+
+    @Test
+    void agentGraphCanBeUsedAsNodeInAnotherGraph() {
+        AgentGraph inner = AgentGraph.builder()
+                .name("inner")
+                .addNode("i1", ctx -> AgentResult.ofText("inner-1"))
+                .addNode("i2", ctx -> AgentResult.ofText("inner-2"))
+                .addEdge("i1", "i2")
+                .build();
+
+        AgentGraph outer = AgentGraph.builder()
+                .name("outer")
+                .addNode("before", ctx -> AgentResult.ofText("before"))
+                .addNode("sub", inner)
+                .addNode("after", ctx -> AgentResult.ofText("after"))
+                .addEdge("before", "sub")
+                .addEdge("sub", "after")
+                .build();
+
+        AgentResult result = outer.invoke(AgentContext.of("go"));
+        assertThat(result.text()).isEqualTo("after");
+    }
+
     private static Agent trace(String tag) {
         return context -> AgentResult.builder()
                 .text(tag)

@@ -8,12 +8,17 @@ import io.github.asekka.springai.agents.core.Agent;
 import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
+import io.github.asekka.springai.agents.core.AgentUsage;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.lang.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public final class ExecutorAgent implements Agent {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExecutorAgent.class);
 
     private final String name;
     private final ChatClient chatClient;
@@ -37,8 +42,40 @@ public final class ExecutorAgent implements Agent {
 
     @Override
     public AgentResult execute(AgentContext context) {
-        String content = buildSpec(context).call().content();
-        return AgentResult.ofText(content);
+        log.info("executor.run: executor={}", name);
+        try {
+            ChatResponse response = buildSpec(context).call().chatResponse();
+            String content = response != null && response.getResult() != null
+                    && response.getResult().getOutput() != null
+                            ? response.getResult().getOutput().getText()
+                            : null;
+            return AgentResult.builder()
+                    .text(content)
+                    .completed(true)
+                    .usage(extractUsage(response))
+                    .build();
+        } catch (Throwable t) {
+            log.error("executor.failure: executor={}", name, t);
+            throw t;
+        }
+    }
+
+    @Nullable
+    private static AgentUsage extractUsage(@Nullable ChatResponse response) {
+        if (response == null || response.getMetadata() == null) {
+            return null;
+        }
+        Usage usage = response.getMetadata().getUsage();
+        if (usage == null) {
+            return null;
+        }
+        Integer prompt = usage.getPromptTokens();
+        Integer completion = usage.getCompletionTokens();
+        Integer total = usage.getTotalTokens();
+        long p = prompt == null ? 0L : prompt.longValue();
+        long c = completion == null ? 0L : completion.longValue();
+        long t = total == null ? p + c : total.longValue();
+        return new AgentUsage(p, c, t);
     }
 
     @Override
@@ -61,12 +98,26 @@ public final class ExecutorAgent implements Agent {
             spec = spec.system(systemPrompt);
         }
         if (!context.messages().isEmpty()) {
-            spec = spec.messages(context.messages());
+            spec = spec.messages(ensureSafeMessageOrder(context.messages()));
         }
         if (!tools.isEmpty()) {
             spec = spec.toolCallbacks(tools.toArray(new ToolCallback[0]));
         }
         return spec;
+    }
+
+    private List<org.springframework.ai.chat.messages.Message> ensureSafeMessageOrder(
+            List<org.springframework.ai.chat.messages.Message> messages) {
+        if (messages.isEmpty()) {
+            return messages;
+        }
+        org.springframework.ai.chat.messages.Message last = messages.get(messages.size() - 1);
+        if (last instanceof org.springframework.ai.chat.messages.AssistantMessage) {
+            List<org.springframework.ai.chat.messages.Message> safe = new ArrayList<>(messages);
+            safe.add(new org.springframework.ai.chat.messages.UserMessage("Proceed."));
+            return safe;
+        }
+        return messages;
     }
 
     public static final class Builder {

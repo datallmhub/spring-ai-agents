@@ -1,5 +1,6 @@
 package io.github.asekka.springai.agents.graph;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,8 +18,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.lang.Nullable;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
-public final class AgentGraph {
+public final class AgentGraph implements Agent {
 
     private static final Logger log = LoggerFactory.getLogger(AgentGraph.class);
 
@@ -70,7 +72,24 @@ public final class AgentGraph {
 
     public AgentResult invoke(AgentContext initial) {
         Objects.requireNonNull(initial, "initial");
-        return run(initial, entryNode, 0, null);
+        return run(initial, entryNode, 0, null, null);
+    }
+
+    public AgentResult invoke(AgentContext initial, Duration timeout) {
+        Objects.requireNonNull(initial, "initial");
+        Objects.requireNonNull(timeout, "timeout");
+        long deadline = System.nanoTime() + timeout.toNanos();
+        return run(initial, entryNode, 0, null, deadline);
+    }
+
+    @Override
+    public AgentResult execute(AgentContext context) {
+        return invoke(context);
+    }
+
+    @Override
+    public Flux<AgentEvent> executeStream(AgentContext context) {
+        return invokeStream(context);
     }
 
     public AgentResult invoke(AgentContext initial, String runId) {
@@ -78,7 +97,7 @@ public final class AgentGraph {
         Objects.requireNonNull(runId, "runId");
         CheckpointStore store = requireCheckpointStore();
         store.save(new Checkpoint(runId, entryNode, initial, 0, null));
-        return run(initial, entryNode, 0, runId);
+        return run(initial, entryNode, 0, runId, null);
     }
 
     public AgentResult resume(String runId, Message... additional) {
@@ -91,7 +110,7 @@ public final class AgentGraph {
         if (additional != null && additional.length > 0) {
             context = context.withMessages(List.of(additional));
         }
-        return run(context, cp.nextNode(), cp.iterations(), runId);
+        return run(context, cp.nextNode(), cp.iterations(), runId, null);
     }
 
     private CheckpointStore requireCheckpointStore() {
@@ -103,13 +122,28 @@ public final class AgentGraph {
     }
 
     private AgentResult run(AgentContext context, String startNode,
-                            int startIterations, @Nullable String runId) {
+                            int startIterations, @Nullable String runId,
+                            @Nullable Long deadlineNanos) {
+        log.info("graph.start: graph={}", name);
         String currentNode = startNode;
         AgentResult lastResult = null;
         int iterations = startIterations;
         CheckpointStore store = checkpointStore;
 
         while (currentNode != null) {
+            if (Thread.currentThread().isInterrupted()) {
+                AgentError err = AgentError.of(currentNode,
+                        new InterruptedException("Graph execution interrupted"));
+                notifyError(currentNode, err);
+                return AgentResult.failed(err);
+            }
+            if (deadlineNanos != null && System.nanoTime() > deadlineNanos) {
+                AgentError err = AgentError.of(currentNode,
+                        new java.util.concurrent.TimeoutException(
+                                "Graph exceeded timeout before entering node '" + currentNode + "'"));
+                notifyError(currentNode, err);
+                return AgentResult.failed(err);
+            }
             if (++iterations > maxIterations) {
                 AgentError err = AgentError.of(currentNode,
                         new IllegalStateException("Max iterations exceeded: " + maxIterations));
@@ -156,6 +190,9 @@ public final class AgentGraph {
                 }
             }
 
+            if (next != null) {
+                notifyTransition(currentNode, next);
+            }
             currentNode = next;
         }
 
@@ -165,8 +202,12 @@ public final class AgentGraph {
     }
 
     public Flux<AgentEvent> invokeStream(AgentContext initial) {
-        return Flux.create(sink -> {
+        // Flux.create runs the imperative loop (including toIterable() inside tryStream)
+        // on the subscriber's thread. subscribeOn(boundedElastic) ensures that thread
+        // is always blocking-capable, even when the caller is a Netty/WebFlux event loop.
+        return Flux.<AgentEvent>create(sink -> {
             try {
+                log.info("graph.start: graph={}", name);
                 AgentContext context = initial;
                 String currentNode = entryNode;
                 AgentResult lastResult = null;
@@ -184,6 +225,7 @@ public final class AgentGraph {
 
                     if (previousNode != null) {
                         sink.next(AgentEvent.transition(previousNode, currentNode));
+                        notifyTransition(previousNode, currentNode);
                     }
 
                     Node node = nodes.get(currentNode);
@@ -218,7 +260,7 @@ public final class AgentGraph {
             catch (Throwable t) {
                 sink.error(t);
             }
-        });
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     private NodeOutcome streamNodeWithPolicy(Node node, AgentContext context,
@@ -302,6 +344,26 @@ public final class AgentGraph {
         }
     }
 
+    /**
+     * Resolves the next node to visit after {@code from}, applying edges in
+     * declaration order with the following priority:
+     *
+     * <ol>
+     *   <li>{@link Edge.OnResult} — tested first; wins if its predicate matches
+     *       {@code (context, lastResult)}. Useful for routing based on node output
+     *       (e.g. "needs-review", tool calls present, etc.).</li>
+     *   <li>{@link Edge.Conditional} — tested next; wins if its predicate matches
+     *       {@code context}. Useful for routing based on accumulated state.</li>
+     *   <li>{@link Edge.Direct} — acts as a guaranteed fallback; the first direct
+     *       edge found is used if no conditional edge fired. Only one direct fallback
+     *       per source node is meaningful.</li>
+     * </ol>
+     *
+     * <p><b>Important</b>: if you declare both an {@code OnResult} and a
+     * {@code Direct} edge from the same node, the {@code OnResult} wins when its
+     * predicate is {@code true}; the {@code Direct} is only taken when it is
+     * {@code false}. This mirrors a classic "match / fallthrough" pattern.
+     */
     private Optional<String> nextNode(String from, AgentContext context, AgentResult lastResult) {
         String directFallback = null;
         for (Edge edge : edges) {
@@ -338,9 +400,18 @@ public final class AgentGraph {
     }
 
     private void notifyError(String node, AgentError error) {
+        log.error("graph.error: graph={} node={}", name, node, error.cause());
         for (AgentListener l : listeners) {
             try { l.onNodeError(name, node, error); }
             catch (Exception e) { log.warn("Listener failed on error", e); }
+        }
+    }
+
+    private void notifyTransition(String from, String to) {
+        log.info("graph.transition: graph={} from={} to={}", name, from, to);
+        for (AgentListener l : listeners) {
+            try { l.onTransition(name, from, to); }
+            catch (Exception e) { log.warn("Listener failed on transition", e); }
         }
     }
 

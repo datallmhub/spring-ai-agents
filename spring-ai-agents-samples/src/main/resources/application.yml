@@ -1,0 +1,10 @@
+spring:
+  ai:
+    mistralai:
+      api-key: ${MISTRAL_API_KEY}
+      chat:
+        options:
+          model: mistral-small-latest
+          temperature: 0.3
+  main:
+    banner-mode: off

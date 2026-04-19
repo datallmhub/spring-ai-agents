@@ -33,17 +33,13 @@ public class SpringAiAgentsAutoConfiguration {
         return RoutingStrategy.first();
     }
 
-    @AutoConfiguration
+    @Bean
     @ConditionalOnClass(MeterRegistry.class)
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "spring.ai.agents.observability", name = "metrics",
             havingValue = "true", matchIfMissing = true)
-    public static class MetricsConfiguration {
-
-        @Bean
-        @ConditionalOnBean(MeterRegistry.class)
-        @ConditionalOnMissingBean
-        AgentListener micrometerAgentListener(MeterRegistry registry) {
-            return new MicrometerAgentListener(registry);
-        }
+    AgentListener micrometerAgentListener(MeterRegistry registry) {
+        return new MicrometerAgentListener(registry);
     }
 }

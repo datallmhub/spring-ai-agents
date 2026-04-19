@@ -1,8 +1,48 @@
 # spring-ai-agents — Cahier des Charges
 
-**Version :** 1.1 (révisée après revue d'architecture)
+**Version :** 1.2 (clarifications API et state lifecycle)
 **Date :** Avril 2026
 **Statut :** draft
+
+---
+
+## 🎯 Promesse
+
+> **spring-ai-agents** permet de coordonner plusieurs agents spécialisés dans des applications Spring Boot sans écrire de logique d'orchestration.
+
+**Exemple minimal :**
+
+```java
+// API principale — Squad
+CoordinatorAgent coordinator = CoordinatorAgent.builder()
+    .executors(Map.of(
+        "research", researchExecutor,
+        "analysis", analysisExecutor,
+        "writing",  writingExecutor
+    ))
+    .routingStrategy(RoutingStrategy.llmDriven(chatClient))
+    .build();
+
+AgentResult result = coordinator.execute(
+    AgentContext.of(UserMessage.of("Compare Claude 4 and GPT-5"))
+);
+```
+
+> Pas de boucle `while`. Pas de routage manuel. Juste des agents qui collaborent.
+
+**Usage avancé — contrôle fin du workflow :**
+
+```java
+// AgentGraph : pour les workflows nécessitant un séquencement explicite
+AgentGraph researchGraph = AgentGraph.builder()
+    .addNode("research", researchExecutor)
+    .addNode("analyze",  analysisExecutor)
+    .addNode("write",    writingExecutor)
+    .addEdge("research", "analyze")
+    .addEdge("analyze",  "write")
+    .errorPolicy(ErrorPolicy.RETRY_ONCE)
+    .build();
+```
 
 ---
 
@@ -85,7 +125,22 @@ public sealed interface AgentEvent {
 }
 ```
 
+**State lifecycle** — contrat runtime
+
+| Rôle | Responsabilité |
+|------|----------------|
+| `Agent` | Déclare ses mutations via `AgentResult.stateUpdates` |
+| `AgentGraph` (runtime) | Applique les `stateUpdates` dans le contexte immuable entre chaque nœud |
+| `AgentContext` | Reste **immutable** du point de vue des agents — chaque nœud reçoit une nouvelle instance |
+
+> **Règle :** Un agent ne doit jamais muter le contexte directement. Il exprime ses intentions via `stateUpdates`.
+> Le runtime est le seul responsable de la propagation d'état.
+
 ### 3.2 Orchestration — Graph
+
+> **Note architecturale :** `AgentGraph` est le **runtime d'exécution** interne.
+> L'**API principale** exposée aux utilisateurs est la **Squad API** (`CoordinatorAgent` / `ExecutorAgent`).
+> `AgentGraph` reste accessible aux power-users souhaitant un contrôle fin du workflow.
 
 Concepts :
 - `Node` = un `Agent`
@@ -121,25 +176,25 @@ public final class AgentGraph {
 
 ### 3.3 Rôles d'agents
 
-**CoordinatorAgent** — planification et routage
+**CoordinatorAgent** — supervision et routage dynamique
 
 ```java
 CoordinatorAgent coordinator = CoordinatorAgent.builder()
-    .chatClient(chatClient)
-    .systemPrompt("...")
+    .name("project-supervisor")
     .executors(Map.of(
         "research", researchExecutor,
         "analysis", analysisExecutor,
         "writing", writingExecutor
     ))
-    .routingStrategy(RoutingStrategy.LLM_DRIVEN)
+    .routingStrategy(RoutingStrategy.llmDriven(chatClient))
     .build();
 ```
 
 Responsabilités :
-- Découpe une requête en sous-tâches
-- Sélectionne l'executor approprié (stratégie pluggable)
-- Agrège les résultats
+- Agit comme un routeur dynamique ou un superviseur (Supervisor pattern)
+- Sélectionne l'executor approprié pour l'étape courante (stratégie pluggable)
+- Délègue l'exécution à cet executor et retourne son résultat
+- *NB: Pour des boucles complexes (découpage, supervision continue), il est typiquement wrappé dans un `ReActAgent` (voir les recipes).*
 
 **ExecutorAgent** — exécution spécialisée
 
@@ -395,3 +450,4 @@ spring:
 |---------|------|-------------|
 | 1.0 | Avril 2026 | Draft initial |
 | 1.1 | Avril 2026 | Typage strict du state (StateBag vs Map), AgentResult enrichi (toolCalls, structuredOutput), observabilité minimale et error policy déplacés en V1, streaming ajouté, testabilité en critère de succès |
+| 1.2 | Avril 2026 | Promesse produit en tête de document, Research Squad remonté, clarification AgentGraph = runtime (API principale = Squad API), contrat State lifecycle formalisé |
