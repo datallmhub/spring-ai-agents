@@ -1,0 +1,235 @@
+package io.github.asekka.springai.agents.graph;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import io.github.asekka.springai.agents.core.Agent;
+import io.github.asekka.springai.agents.core.AgentContext;
+import io.github.asekka.springai.agents.core.AgentError;
+import io.github.asekka.springai.agents.core.AgentEvent;
+import io.github.asekka.springai.agents.core.AgentResult;
+import io.github.asekka.springai.agents.core.StateKey;
+import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class AgentGraphTests {
+
+    private static final StateKey<String> TRACE = StateKey.of("trace", String.class);
+
+    private static Agent trace(String tag) {
+        return context -> AgentResult.builder()
+                .text(tag)
+                .stateUpdates(Map.of(TRACE, appendTrace(context, tag)))
+                .build();
+    }
+
+    private static String appendTrace(AgentContext ctx, String tag) {
+        String current = ctx.get(TRACE);
+        return current == null ? tag : current + "->" + tag;
+    }
+
+    @Test
+    void linearGraphRunsNodesInOrder() {
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("a", trace("a"))
+                .addNode("b", trace("b"))
+                .addNode("c", trace("c"))
+                .addEdge("a", "b")
+                .addEdge("b", "c")
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("c");
+        assertThat(result.stateUpdates().get(TRACE)).isEqualTo("a->b->c");
+    }
+
+    @Test
+    void conditionalEdgeRouts() {
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("start", trace("start"))
+                .addNode("branchA", trace("A"))
+                .addNode("branchB", trace("B"))
+                .addEdge(Edge.conditional("start",
+                        ctx -> "A".equals(ctx.get(TRACE)) || "start".equals(ctx.get(TRACE)),
+                        "branchA"))
+                .addEdge("start", "branchB")
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("A");
+    }
+
+    @Test
+    void failFastPropagatesError() {
+        Agent failing = ctx -> {
+            throw new RuntimeException("boom");
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("fail", failing)
+                .errorPolicy(ErrorPolicy.FAIL_FAST)
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        AgentError err = java.util.Objects.requireNonNull(result.error());
+        assertThat(err.nodeName()).isEqualTo("fail");
+        assertThat(err.cause()).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void retryOncePolicyRetriesOnce() {
+        AtomicInteger attempts = new AtomicInteger();
+        Agent flaky = ctx -> {
+            int attempt = attempts.incrementAndGet();
+            if (attempt == 1) {
+                throw new RuntimeException("transient");
+            }
+            return AgentResult.ofText("ok-on-attempt-" + attempt);
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("flaky", flaky)
+                .errorPolicy(ErrorPolicy.RETRY_ONCE)
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("ok-on-attempt-2");
+        assertThat(attempts.get()).isEqualTo(2);
+    }
+
+    @Test
+    void skipNodeContinuesOnError() {
+        Agent failing = ctx -> {
+            throw new RuntimeException("boom");
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("fail", failing)
+                .addNode("recover", trace("recover"))
+                .addEdge("fail", "recover")
+                .errorPolicy(ErrorPolicy.SKIP_NODE)
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.text()).isEqualTo("recover");
+    }
+
+    @Test
+    void cycleTerminatesOnMaxIterations() {
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("loop", trace("l"))
+                .addEdge("loop", "loop")
+                .maxIterations(3)
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        AgentError err = java.util.Objects.requireNonNull(result.error());
+        assertThat(err.cause().getMessage()).contains("Max iterations");
+    }
+
+    @Test
+    void builderRejectsEdgeToUnknownNode() {
+        assertThatThrownBy(() -> AgentGraph.builder()
+                .addNode("a", trace("a"))
+                .addEdge("a", "ghost")
+                .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ghost");
+    }
+
+    @Test
+    void listenerReceivesLifecycleEvents() {
+        AtomicInteger enters = new AtomicInteger();
+        AtomicInteger exits = new AtomicInteger();
+        AtomicInteger completes = new AtomicInteger();
+
+        AgentListener listener = new AgentListener() {
+            @Override
+            public void onNodeEnter(String graphName, String nodeName, AgentContext context) {
+                enters.incrementAndGet();
+            }
+            @Override
+            public void onNodeExit(String graphName, String nodeName, AgentResult result, long durationNanos) {
+                exits.incrementAndGet();
+            }
+            @Override
+            public void onGraphComplete(String graphName, AgentResult result) {
+                completes.incrementAndGet();
+            }
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("a", trace("a"))
+                .addNode("b", trace("b"))
+                .addEdge("a", "b")
+                .listener(listener)
+                .build();
+
+        graph.invoke(AgentContext.empty());
+        assertThat(enters.get()).isEqualTo(2);
+        assertThat(exits.get()).isEqualTo(2);
+        assertThat(completes.get()).isEqualTo(1);
+    }
+
+    @Test
+    void invokeStreamForwardsPerNodeTokens() {
+        Agent streamingAgent = new Agent() {
+            @Override
+            public AgentResult execute(AgentContext context) {
+                return AgentResult.ofText("hello world");
+            }
+
+            @Override
+            public Flux<AgentEvent> executeStream(AgentContext context) {
+                return Flux.just(
+                        AgentEvent.token("hello "),
+                        AgentEvent.token("world"),
+                        AgentEvent.completed(AgentResult.ofText("hello world")));
+            }
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("stream", streamingAgent)
+                .build();
+
+        StepVerifier.create(graph.invokeStream(AgentContext.empty()))
+                .expectNextMatches(e -> e instanceof AgentEvent.Token t && "hello ".equals(t.chunk()))
+                .expectNextMatches(e -> e instanceof AgentEvent.Token t && "world".equals(t.chunk()))
+                .expectNextMatches(e -> e instanceof AgentEvent.Completed c
+                        && "hello world".equals(c.result().text()))
+                .verifyComplete();
+    }
+
+    @Test
+    void invokeStreamEmitsTransitionsAndCompletion() {
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("a", trace("a"))
+                .addNode("b", trace("b"))
+                .addEdge("a", "b")
+                .build();
+
+        StepVerifier.create(graph.invokeStream(AgentContext.empty()))
+                .expectNextMatches(e -> e instanceof AgentEvent.NodeTransition t
+                        && t.from().equals("a") && t.to().equals("b"))
+                .expectNextMatches(e -> e instanceof AgentEvent.Completed c
+                        && "b".equals(c.result().text()))
+                .verifyComplete();
+    }
+
+    @Test
+    void errorResultInNodeIsReportedAsFailure() {
+        Agent returnsError = ctx -> AgentResult.failed(AgentError.of("x", new IllegalArgumentException("bad")));
+
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("x", returnsError)
+                .errorPolicy(ErrorPolicy.FAIL_FAST)
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.empty());
+        assertThat(result.hasError()).isTrue();
+    }
+}
