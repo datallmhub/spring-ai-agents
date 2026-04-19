@@ -1,0 +1,186 @@
+package io.github.asekka.springai.agents.samples;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import io.github.asekka.springai.agents.core.Agent;
+import io.github.asekka.springai.agents.core.AgentContext;
+import io.github.asekka.springai.agents.core.AgentResult;
+import io.github.asekka.springai.agents.core.StateKey;
+import io.github.asekka.springai.agents.graph.AgentGraph;
+import io.github.asekka.springai.agents.graph.AgentListener;
+import io.github.asekka.springai.agents.graph.Edge;
+import io.github.asekka.springai.agents.graph.ErrorPolicy;
+import io.github.asekka.springai.agents.squad.CoordinatorAgent;
+import io.github.asekka.springai.agents.squad.ExecutorAgent;
+import io.github.asekka.springai.agents.squad.RoutingStrategy;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * End-to-end integration tests that hit a real Mistral LLM.
+ *
+ * <p>Gated on {@code MISTRAL_API_KEY} — the entire class is skipped (not failed)
+ * when the variable is absent, so CI without credentials stays green.
+ *
+ * <p>Covers the same four scenarios as {@link MistralIntegrationDemo}:
+ * single executor, coordinator routing, multi-step graph, conditional loop.
+ */
+@SpringBootTest(classes = MistralIntegrationTests.TestApp.class,
+        webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@EnabledIfEnvironmentVariable(named = "MISTRAL_API_KEY", matches = ".+")
+class MistralIntegrationTests {
+
+    @Autowired
+    ChatModel chatModel;
+
+    private ChatClient chatClient() {
+        return ChatClient.builder(chatModel).build();
+    }
+
+    @Test
+    void singleExecutorProducesNonEmptyAnswer() {
+        ExecutorAgent agent = ExecutorAgent.builder()
+                .name("summarizer")
+                .chatClient(chatClient())
+                .systemPrompt("You are a concise assistant. Answer in one sentence only.")
+                .build();
+
+        AgentResult result = agent.execute(AgentContext.of("What is Spring Boot?"));
+
+        assertThat(result.completed()).isTrue();
+        assertThat(result.text()).isNotBlank();
+    }
+
+    @Test
+    void coordinatorRoutesToCreativeBranchForHaikuPrompt() {
+        ChatClient cc = chatClient();
+        ExecutorAgent tech = ExecutorAgent.builder()
+                .name("tech")
+                .chatClient(cc)
+                .systemPrompt("You are a technical expert. Start your response with [TECH].")
+                .build();
+        ExecutorAgent creative = ExecutorAgent.builder()
+                .name("creative")
+                .chatClient(cc)
+                .systemPrompt("You are a creative writer. Start your response with [CREATIVE].")
+                .build();
+
+        CoordinatorAgent coordinator = CoordinatorAgent.builder()
+                .name("router")
+                .executors(Map.of("tech", tech, "creative", creative))
+                .routingStrategy(RoutingStrategy.llmDriven(cc))
+                .build();
+
+        AgentResult result = coordinator.execute(
+                AgentContext.of("Write a haiku about Java programming"));
+
+        assertThat(result.text()).isNotBlank();
+    }
+
+    @Test
+    void threeStepGraphVisitsEveryNode() {
+        ChatClient cc = chatClient();
+        StateKey<String> topic = StateKey.of("topic", String.class);
+
+        ExecutorAgent researcher = ExecutorAgent.builder()
+                .name("researcher").chatClient(cc)
+                .systemPrompt("Extract the main topic from the user message. Reply with ONLY the topic.")
+                .build();
+        ExecutorAgent analyzer = ExecutorAgent.builder()
+                .name("analyzer").chatClient(cc)
+                .systemPrompt("List 3 key facts about the topic mentioned in the conversation. Be concise.")
+                .build();
+        ExecutorAgent writer = ExecutorAgent.builder()
+                .name("writer").chatClient(cc)
+                .systemPrompt("Write a 2-sentence summary based on the conversation so far.")
+                .build();
+
+        AtomicInteger nodesVisited = new AtomicInteger();
+        AgentListener counter = new AgentListener() {
+            @Override public void onNodeEnter(String g, String node, AgentContext ctx) {
+                nodesVisited.incrementAndGet();
+            }
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .name("research-pipeline")
+                .addNode("research", researcher)
+                .addNode("analyze", analyzer)
+                .addNode("write", writer)
+                .addEdge("research", "analyze")
+                .addEdge("analyze", "write")
+                .errorPolicy(ErrorPolicy.RETRY_ONCE)
+                .listener(counter)
+                .build();
+
+        AgentResult result = graph.invoke(
+                AgentContext.of("Tell me about WebAssembly and its impact on web development"));
+
+        assertThat(result.completed()).isTrue();
+        assertThat(result.text()).isNotBlank();
+        assertThat(nodesVisited.get()).isEqualTo(3);
+    }
+
+    @Test
+    void conditionalLoopEventuallyReachesFinish() {
+        ChatClient cc = chatClient();
+        StateKey<Integer> round = StateKey.of("round", Integer.class);
+
+        ExecutorAgent checker = ExecutorAgent.builder()
+                .name("checker").chatClient(cc)
+                .systemPrompt("You are a quality checker. "
+                        + "If this is the first round, reply with exactly: NEEDS_WORK. "
+                        + "If previous messages mention NEEDS_WORK, reply with exactly: APPROVED.")
+                .build();
+
+        Agent roundTracker = ctx -> {
+            int r = ctx.get(round) != null ? ctx.get(round) + 1 : 1;
+            AgentResult inner = checker.execute(ctx);
+            return AgentResult.builder()
+                    .text(inner.text())
+                    .stateUpdates(Map.of(round, r))
+                    .completed(inner.completed())
+                    .build();
+        };
+        Agent finisher = ctx -> AgentResult.ofText(
+                "Quality check passed after " + ctx.get(round) + " round(s).");
+
+        AtomicInteger transitions = new AtomicInteger();
+        AgentListener tc = new AgentListener() {
+            @Override public void onTransition(String g, String from, String to) {
+                transitions.incrementAndGet();
+            }
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .name("quality-loop")
+                .addNode("check", roundTracker)
+                .addNode("finish", finisher)
+                .addEdge(Edge.onResult("check",
+                        (ctx, r) -> r.text() != null
+                                && r.text().toUpperCase().contains("NEEDS_WORK"),
+                        "check"))
+                .addEdge("check", "finish")
+                .maxIterations(5)
+                .listener(tc)
+                .build();
+
+        AgentResult result = graph.invoke(
+                AgentContext.of("Check the quality of this document."));
+
+        assertThat(result.text()).isNotBlank();
+        assertThat(transitions.get()).isGreaterThanOrEqualTo(1);
+    }
+
+    @SpringBootApplication
+    static class TestApp {
+    }
+}
