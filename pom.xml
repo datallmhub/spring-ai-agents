@@ -25,6 +25,7 @@
         <module>spring-ai-agents-core</module>
         <module>spring-ai-agents-graph</module>
         <module>spring-ai-agents-squad</module>
+        <module>spring-ai-agents-checkpoint</module>
         <module>spring-ai-agents-test</module>
         <module>spring-ai-agents-starter</module>
         <module>spring-ai-agents-samples</module>
@@ -78,6 +79,11 @@
             <dependency>
                 <groupId>io.github.asekka</groupId>
                 <artifactId>spring-ai-agents-test</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.asekka</groupId>
+                <artifactId>spring-ai-agents-checkpoint</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
