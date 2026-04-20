@@ -270,7 +270,8 @@ public final class AgentGraph implements Agent {
                                              reactor.core.publisher.FluxSink<AgentEvent> sink) {
         long start = System.nanoTime();
         AgentResult result = null;
-        int attempts = Math.max(1, retryPolicy.maxAttempts());
+        RetryPolicy policy = effectivePolicy(node);
+        int attempts = Math.max(1, policy.maxAttempts());
         for (int i = 0; i < attempts; i++) {
             result = tryStream(node, context, sink, i);
             if (!result.hasError()) {
@@ -279,11 +280,11 @@ public final class AgentGraph implements Agent {
             AgentError err = result.error();
             boolean canRetry = i < attempts - 1
                     && err != null && err.cause() != null
-                    && retryPolicy.retryOn().test(err.cause());
+                    && policy.retryOn().test(err.cause());
             if (!canRetry) {
                 break;
             }
-            long delay = retryPolicy.computeDelayMs(i + 1);
+            long delay = policy.computeDelayMs(i + 1);
             log.warn("Node '{}' failed during stream, retrying ({}/{}) after {}ms",
                     node.name(), i + 1, attempts - 1, delay);
             sleep(delay);
@@ -331,7 +332,8 @@ public final class AgentGraph implements Agent {
     private NodeOutcome executeWithPolicy(Node node, AgentContext context) {
         long start = System.nanoTime();
         AgentResult result = null;
-        int attempts = Math.max(1, retryPolicy.maxAttempts());
+        RetryPolicy policy = effectivePolicy(node);
+        int attempts = Math.max(1, policy.maxAttempts());
         for (int i = 0; i < attempts; i++) {
             result = tryExecute(node, context, i);
             if (!result.hasError()) {
@@ -340,11 +342,11 @@ public final class AgentGraph implements Agent {
             AgentError err = result.error();
             boolean canRetry = i < attempts - 1
                     && err != null && err.cause() != null
-                    && retryPolicy.retryOn().test(err.cause());
+                    && policy.retryOn().test(err.cause());
             if (!canRetry) {
                 break;
             }
-            long delay = retryPolicy.computeDelayMs(i + 1);
+            long delay = policy.computeDelayMs(i + 1);
             log.warn("Node '{}' failed, retrying ({}/{}) after {}ms",
                     node.name(), i + 1, attempts - 1, delay);
             sleep(delay);
@@ -357,6 +359,11 @@ public final class AgentGraph implements Agent {
         }
 
         return new NodeOutcome(result, duration);
+    }
+
+    private RetryPolicy effectivePolicy(Node node) {
+        RetryPolicy override = node.retryPolicy();
+        return override != null ? override : retryPolicy;
     }
 
     private static void sleep(long millis) {
@@ -483,6 +490,11 @@ public final class AgentGraph implements Agent {
 
         public Builder addNode(String name, Agent agent) {
             return addNode(Node.of(name, agent));
+        }
+
+        public Builder addNode(String name, Agent agent, RetryPolicy nodeRetryPolicy) {
+            return addNode(Node.of(name, agent,
+                    Objects.requireNonNull(nodeRetryPolicy, "nodeRetryPolicy")));
         }
 
         public Builder addNode(Node node) {

@@ -97,6 +97,61 @@ class AgentGraphRetryTests {
     }
 
     @Test
+    void perNodeRetryPolicyOverridesGraphDefault() {
+        AtomicInteger calls = new AtomicInteger();
+        Agent flaky = ctx -> {
+            int n = calls.incrementAndGet();
+            if (n < 3) {
+                throw new java.io.UncheckedIOException(new IOException("boom " + n));
+            }
+            return AgentResult.ofText("ok");
+        };
+
+        RetryPolicy nodeRetry = new RetryPolicy(3, Duration.ZERO, Duration.ZERO, 1.0, 0.0,
+                RetryPredicates.always());
+        AgentGraph graph = AgentGraph.builder()
+                .addNode("flaky", flaky, nodeRetry)
+                .retryPolicy(RetryPolicy.none())
+                .build();
+
+        AgentResult result = graph.invoke(AgentContext.of("go"));
+        assertThat(result.completed()).isTrue();
+        assertThat(result.text()).isEqualTo("ok");
+        assertThat(calls.get()).isEqualTo(3);
+    }
+
+    @Test
+    void perNodeNoneDisablesRetryWhileOtherNodesKeepGraphDefault() {
+        AtomicInteger protectedCalls = new AtomicInteger();
+        AtomicInteger strictCalls = new AtomicInteger();
+        Agent alwaysFailStrict = ctx -> {
+            strictCalls.incrementAndGet();
+            throw new RuntimeException("strict never retries");
+        };
+        Agent alwaysFailProtected = ctx -> {
+            protectedCalls.incrementAndGet();
+            throw new RuntimeException("protected retries 3x");
+        };
+
+        RetryPolicy graphDefault = new RetryPolicy(3, Duration.ZERO, Duration.ZERO, 1.0, 0.0,
+                RetryPredicates.always());
+
+        AgentGraph strictFirst = AgentGraph.builder()
+                .addNode("strict", alwaysFailStrict, RetryPolicy.none())
+                .retryPolicy(graphDefault)
+                .build();
+        strictFirst.invoke(AgentContext.of("go"));
+        assertThat(strictCalls.get()).isEqualTo(1);
+
+        AgentGraph defaultOnly = AgentGraph.builder()
+                .addNode("plain", alwaysFailProtected)
+                .retryPolicy(graphDefault)
+                .build();
+        defaultOnly.invoke(AgentContext.of("go"));
+        assertThat(protectedCalls.get()).isEqualTo(3);
+    }
+
+    @Test
     void retryOnceEnumStillWorksAsCompatibilityShim() {
         AtomicInteger calls = new AtomicInteger();
         Agent flaky = ctx -> {

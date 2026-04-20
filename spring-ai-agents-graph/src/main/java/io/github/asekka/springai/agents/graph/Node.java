@@ -4,6 +4,7 @@ import io.github.asekka.springai.agents.core.Agent;
 import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
+import org.springframework.lang.Nullable;
 import reactor.core.publisher.Flux;
 
 public interface Node {
@@ -16,11 +17,20 @@ public interface Node {
         return Flux.just(AgentEvent.completed(execute(context)));
     }
 
-    static Node of(String name, Agent agent) {
-        return new AgentNode(name, agent);
+    @Nullable
+    default RetryPolicy retryPolicy() {
+        return null;
     }
 
-    record AgentNode(String name, Agent agent) implements Node {
+    static Node of(String name, Agent agent) {
+        return new AgentNode(name, agent, null);
+    }
+
+    static Node of(String name, Agent agent, RetryPolicy retryPolicy) {
+        return new AgentNode(name, agent, retryPolicy);
+    }
+
+    record AgentNode(String name, Agent agent, @Nullable RetryPolicy retryPolicy) implements Node {
         @Override
         public AgentResult execute(AgentContext context) {
             return agent.execute(context);
