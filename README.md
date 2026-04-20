@@ -122,7 +122,8 @@ Real-world problems need **multiple agents working together**:
 | Manual routing (`if`/`switch`) | LLM-driven or rule-based routing |
 | No workflow structure | Graph-based orchestration |
 | Stateless calls | Typed shared state (`StateKey<T>`) |
-| DIY error handling | Built-in `ErrorPolicy` (retry, skip, fail-fast) |
+| DIY error handling | `RetryPolicy` (exp. backoff + jitter) and `CircuitBreakerPolicy`, per-node |
+| No durability | JDBC and Redis `CheckpointStore` with interrupt/resume |
 | No observability | Micrometer metrics out of the box |
 
 ---
@@ -135,7 +136,7 @@ Add the starter to your `pom.xml`:
 <dependency>
     <groupId>io.github.asekka</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -233,12 +234,16 @@ double score = ctx.get(CONFIDENCE);  // no cast needed
 │                 Your Application                │
 ├─────────────────────────────────────────────────┤
 │ spring-ai-agents-starter (auto-config, metrics) │
-├──────────────────────┬──────────────────────────┤
+├──────────────┬──────────────────┬───────────────┤
+│ checkpoint   │ resilience4j     │               │
+│ JDBC, Redis  │ CircuitBreaker   │               │
+├──────────────┴──────────────────┴───────────────┤
 │   squad              │   graph                  │
 │   CoordinatorAgent   │   AgentGraph (runtime)   │
 │   ExecutorAgent      │   Node, Edge             │
-│   RoutingStrategy    │   ErrorPolicy            │
-│   ReActAgent         │   AgentListener          │
+│   RoutingStrategy    │   RetryPolicy, CB SPI    │
+│   ReActAgent         │   CheckpointStore        │
+│   ParallelAgent      │   ErrorPolicy            │
 ├──────────────────────┴──────────────────────────┤
 │ spring-ai-agents-core                           │
 │ Agent, AgentContext, AgentResult, AgentEvent     │
@@ -251,14 +256,32 @@ double score = ctx.get(CONFIDENCE);  // no cast needed
 
 ---
 
-## Built-in error handling
+## Resilience
+
+Three layers compose: error policy (what to do on failure), retry (how to
+recover from transient failure), circuit breaker (when to stop trying).
 
 ```java
 AgentGraph.builder()
-    .errorPolicy(ErrorPolicy.FAIL_FAST)   // stop on first error (default)
-    .errorPolicy(ErrorPolicy.RETRY_ONCE)  // retry the failed node once
-    .errorPolicy(ErrorPolicy.SKIP_NODE)   // log and continue
+    .errorPolicy(ErrorPolicy.FAIL_FAST)          // or RETRY_ONCE / SKIP_NODE
+    .retryPolicy(RetryPolicy.exponential(3, Duration.ofMillis(200)))
+    .addNode("llm", flakyAgent,
+             RetryPolicy.exponential(5, Duration.ofMillis(500)),   // per-node override
+             new Resilience4jCircuitBreakerPolicy(registry))        // per-node breaker
+    .build();
 ```
+
+- **`RetryPolicy`** — bounded jitter `[cap*(1-f), cap]` so retries never
+  exceed `maxDelay`; per-node override wins over the graph default.
+- **`CircuitBreakerPolicy`** — SPI lives in the graph module (R4j-free).
+  `spring-ai-agents-resilience4j` ships an adapter backed by Resilience4j's
+  `CircuitBreakerRegistry` (per-node breakers) or a shared breaker for
+  aggregate counting.
+- **`ErrorPolicy.SKIP_NODE`** — propagate past a blown breaker when the rest
+  of the graph can still make useful progress.
+
+See [resilient-typed-executor.md](docs/recipes/resilient-typed-executor.md)
+and [circuit-breaker.md](docs/recipes/circuit-breaker.md).
 
 ---
 
@@ -292,7 +315,11 @@ AgentGraph.builder()
 - [ReAct loop](docs/recipes/react-loop.md) — self-correcting agent with observation/action cycles
 - [Supervisor pattern](docs/recipes/supervisor-pattern.md) — coordinator re-routes until done
 - [Parallel executors](docs/recipes/parallel-executors.md) — fan-out/fan-in
+- [Subgraphs](docs/recipes/subgraphs.md) — plug a graph in as a node
 - [Human-in-the-loop](docs/recipes/human-in-the-loop.md) — interrupt, wait for human input, resume
+- [Durable runs](docs/recipes/durable-runs.md) — JDBC or Redis checkpoint store, resume after crash
+- [Resilient typed executor](docs/recipes/resilient-typed-executor.md) — tool audit + typed output + retry
+- [Circuit breaker](docs/recipes/circuit-breaker.md) — trip upstream calls with Resilience4j
 
 ---
 
@@ -301,8 +328,10 @@ AgentGraph.builder()
 | Module | What it provides |
 |--------|-----------------|
 | `spring-ai-agents-core` | `Agent`, `AgentContext`, `AgentResult`, `AgentEvent`, `StateKey`, `StateBag` |
-| `spring-ai-agents-graph` | `AgentGraph`, `Node`, `Edge`, `ErrorPolicy`, `AgentListener` |
-| `spring-ai-agents-squad` | `CoordinatorAgent`, `ExecutorAgent`, `RoutingStrategy`, `ReActAgent` |
+| `spring-ai-agents-graph` | `AgentGraph`, `Node`, `Edge`, `ErrorPolicy`, `RetryPolicy`, `CircuitBreakerPolicy`, `AgentListener`, `CheckpointStore` |
+| `spring-ai-agents-squad` | `CoordinatorAgent`, `ExecutorAgent` (with typed `outputKey`), `RoutingStrategy`, `ReActAgent`, `ParallelAgent` |
+| `spring-ai-agents-checkpoint` | `JacksonCheckpointCodec`, `JdbcCheckpointStore`, `RedisCheckpointStore`, `StateTypeRegistry` |
+| `spring-ai-agents-resilience4j` | `Resilience4jCircuitBreakerPolicy` backed by Resilience4j |
 | `spring-ai-agents-test` | `MockAgent`, `TestGraph` — test without a real LLM |
 | `spring-ai-agents-starter` | Auto-configuration, Micrometer, `application.yml` binding |
 
@@ -342,9 +371,9 @@ assertThat(result.text()).isEqualTo("done");
 
 | Version | Focus |
 |---------|-------|
-| **0.3** (current) | Core complete, HITL, checkpointing |
+| **0.4** (current) | Subgraphs, parallel fan-out, cancellation, typed output, `RetryPolicy`, `CircuitBreakerPolicy`, JDBC/Redis checkpoint store |
 | **1.0** | API stabilization, documentation, community feedback |
-| **1.1** | Crew roles (CrewAI-inspired), JDBC checkpointer |
+| **1.1** | Crew roles (CrewAI-inspired), auto-config for checkpoint backends |
 | **2.0** | OpenTelemetry tracing, MCP integration, Agent-as-Tool |
 
 ---

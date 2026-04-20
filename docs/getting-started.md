@@ -34,6 +34,26 @@ A multi-agent orchestration layer for Spring AI, inspired by LangGraph / CrewAI
 - **Cancellation**: `graph.invoke(ctx, Duration.ofSeconds(30))` bounds the run
   with a deadline. Thread-interrupt is also honored between nodes — both surface
   as a failed `AgentResult` carrying the originating node.
+- **Typed structured output**: `ExecutorAgent.builder().outputKey(MY_KEY)` binds
+  the model response to a `StateKey<T>` using Spring AI's `responseEntity(...)`.
+  Downstream nodes read the typed value via `ctx.get(MY_KEY)` — zero casts. See
+  [resilient-typed-executor.md](recipes/resilient-typed-executor.md).
+- **Tool-call handoff**: `AgentResult.toolCalls()` exposes every tool
+  invocation as a `ToolCallRecord(name, arguments, result, error, durationMs)`
+  for downstream audit nodes.
+- **`RetryPolicy`**: exponential backoff with bounded jitter, configurable
+  graph-wide (`AgentGraph.Builder.retryPolicy(...)`) and per-node
+  (`addNode(name, agent, policy)`). Retains `ErrorPolicy.RETRY_ONCE` as a
+  compatibility shim. See [resilient-typed-executor.md](recipes/resilient-typed-executor.md).
+- **`CircuitBreakerPolicy`**: graph-module SPI with a no-op default; a
+  Resilience4j adapter lives in `spring-ai-agents-resilience4j`. Applied
+  per-node so retries iterate through the breaker. See
+  [circuit-breaker.md](recipes/circuit-breaker.md).
+- **Durable checkpoints**: `JdbcCheckpointStore` (portable upsert, H2/Postgres/
+  MySQL) and `RedisCheckpointStore` (optional TTL) ship in
+  `spring-ai-agents-checkpoint` alongside a Jackson codec with a
+  `StateTypeRegistry` whitelist. See
+  [durable-runs.md](recipes/durable-runs.md).
 
 ## What's in 0.3
 
@@ -133,3 +153,6 @@ and `agents.execution.errors`.
 - [Recipe: Parallel executors](recipes/parallel-executors.md)
 - [Recipe: Subgraphs](recipes/subgraphs.md)
 - [Recipe: Human-in-the-loop](recipes/human-in-the-loop.md)
+- [Recipe: Durable runs](recipes/durable-runs.md)
+- [Recipe: Resilient typed executor](recipes/resilient-typed-executor.md)
+- [Recipe: Circuit breaker](recipes/circuit-breaker.md)
