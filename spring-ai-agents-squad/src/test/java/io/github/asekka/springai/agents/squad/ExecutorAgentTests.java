@@ -4,9 +4,11 @@ import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
 import io.github.asekka.springai.agents.core.AgentUsage;
+import io.github.asekka.springai.agents.core.StateKey;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
@@ -124,6 +126,34 @@ class ExecutorAgentTests {
     void builderRejectsNullChatClient() {
         assertThatThrownBy(() -> ExecutorAgent.builder().build())
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    public record Report(String topic, int priority) {}
+
+    @Test
+    void outputKeyPopulatesStructuredOutputAndStateUpdates() {
+        ChatClient chatClient = mock(ChatClient.class);
+        ChatClient.ChatClientRequestSpec spec = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec call = mock(ChatClient.CallResponseSpec.class);
+        when(chatClient.prompt()).thenReturn(spec);
+        when(spec.system(anyString())).thenReturn(spec);
+        when(spec.messages(any(java.util.List.class))).thenReturn(spec);
+        when(spec.call()).thenReturn(call);
+        Report parsed = new Report("security", 8);
+        when(call.responseEntity(Report.class))
+                .thenReturn(new ResponseEntity<>(chatResponseWithUsage("{\"topic\":\"security\",\"priority\":8}", 5, 3), parsed));
+
+        StateKey<Report> key = StateKey.of("report", Report.class);
+        ExecutorAgent agent = ExecutorAgent.builder()
+                .chatClient(chatClient)
+                .systemPrompt("you produce JSON")
+                .outputKey(key)
+                .build();
+
+        AgentResult r = agent.execute(AgentContext.of("go"));
+        assertThat(r.structuredOutput()).isEqualTo(parsed);
+        assertThat(r.stateUpdates()).containsEntry(key, parsed);
+        assertThat(r.text()).isEqualTo("{\"topic\":\"security\",\"priority\":8}");
     }
 
     @Test

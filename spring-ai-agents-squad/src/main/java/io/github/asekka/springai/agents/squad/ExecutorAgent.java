@@ -2,6 +2,7 @@ package io.github.asekka.springai.agents.squad;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import io.github.asekka.springai.agents.core.Agent;
@@ -9,7 +10,9 @@ import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
 import io.github.asekka.springai.agents.core.AgentUsage;
+import io.github.asekka.springai.agents.core.StateKey;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.tool.ToolCallback;
@@ -25,12 +28,14 @@ public final class ExecutorAgent implements Agent {
     private final ChatClient chatClient;
     private final String systemPrompt;
     private final List<ToolCallback> tools;
+    @Nullable private final StateKey<?> outputKey;
 
     private ExecutorAgent(Builder b) {
         this.name = b.name;
         this.chatClient = Objects.requireNonNull(b.chatClient, "chatClient");
         this.systemPrompt = b.systemPrompt;
         this.tools = List.copyOf(b.tools);
+        this.outputKey = b.outputKey;
     }
 
     public static Builder builder() {
@@ -46,21 +51,38 @@ public final class ExecutorAgent implements Agent {
         log.info("executor.run: executor={}", name);
         ToolCallCollector collector = new ToolCallCollector();
         try {
-            ChatResponse response = buildSpec(context, collector).call().chatResponse();
+            ChatClient.CallResponseSpec call = buildSpec(context, collector).call();
+            ChatResponse response;
+            Object entity;
+            if (outputKey != null) {
+                ResponseEntity<ChatResponse, ?> typed = call.responseEntity(outputKey.type());
+                response = typed.getResponse();
+                entity = typed.getEntity();
+            } else {
+                response = call.chatResponse();
+                entity = null;
+            }
             String content = response != null && response.getResult() != null
                     && response.getResult().getOutput() != null
                             ? response.getResult().getOutput().getText()
                             : null;
-            return AgentResult.builder()
+            AgentResult.Builder rb = AgentResult.builder()
                     .text(content)
                     .toolCalls(collector.snapshot())
                     .completed(true)
-                    .usage(extractUsage(response))
-                    .build();
+                    .usage(extractUsage(response));
+            if (entity != null) {
+                rb.structuredOutput(entity).stateUpdates(stateUpdateFor(entity));
+            }
+            return rb.build();
         } catch (Throwable t) {
             log.error("executor.failure: executor={}", name, t);
             throw t;
         }
+    }
+
+    private Map<StateKey<?>, Object> stateUpdateFor(Object entity) {
+        return outputKey == null ? Map.of() : Map.of(outputKey, entity);
     }
 
     @Nullable
@@ -139,6 +161,7 @@ public final class ExecutorAgent implements Agent {
         private ChatClient chatClient;
         private String systemPrompt;
         private final List<ToolCallback> tools = new ArrayList<>();
+        @Nullable private StateKey<?> outputKey;
 
         public Builder name(String name) {
             this.name = Objects.requireNonNull(name, "name");
@@ -168,6 +191,11 @@ public final class ExecutorAgent implements Agent {
             if (tools != null) {
                 tools.forEach(t -> this.tools.add(Objects.requireNonNull(t, "tool")));
             }
+            return this;
+        }
+
+        public Builder outputKey(StateKey<?> outputKey) {
+            this.outputKey = outputKey;
             return this;
         }
 

@@ -222,6 +222,30 @@ class MistralIntegrationTests {
 
     public record WeatherRequest(String city) {}
 
+    public record TopicReport(String topic, int priority) {}
+
+    @Test
+    void outputKeyProducesTypedEntityAndStateUpdate() {
+        StateKey<TopicReport> report = StateKey.of("report", TopicReport.class);
+        ExecutorAgent agent = ExecutorAgent.builder()
+                .name("analyst")
+                .chatClient(chatClient())
+                .systemPrompt("You are a security triage analyst. "
+                        + "Read the user's message, extract the topic and a priority from 1 (low) to 10 (critical).")
+                .outputKey(report)
+                .build();
+
+        AgentResult result = agent.execute(AgentContext.of(
+                "A critical CVE was disclosed in our authentication library — we need to patch today."));
+
+        assertThat(result.completed()).isTrue();
+        assertThat(result.structuredOutput()).isInstanceOf(TopicReport.class);
+        TopicReport r = (TopicReport) result.structuredOutput();
+        assertThat(r.topic()).isNotBlank();
+        assertThat(r.priority()).isBetween(1, 10);
+        assertThat(result.stateUpdates()).containsEntry(report, r);
+    }
+
     @SpringBootApplication
     static class TestApp {
     }
