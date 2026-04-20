@@ -6,13 +6,13 @@ public sealed interface AgentEvent {
 
     record Token(String chunk) implements AgentEvent {}
 
-    record ToolCallStart(String toolName, Map<String, Object> args) implements AgentEvent {
+    record ToolCallStart(String toolName, Map<String, Object> arguments) implements AgentEvent {
         public ToolCallStart {
-            args = args == null ? Map.of() : Map.copyOf(args);
+            arguments = arguments == null ? Map.of() : Map.copyOf(arguments);
         }
     }
 
-    record ToolCallEnd(String toolName, Object result) implements AgentEvent {}
+    record ToolCallEnd(ToolCallRecord record) implements AgentEvent {}
 
     record NodeTransition(String from, String to) implements AgentEvent {}
 

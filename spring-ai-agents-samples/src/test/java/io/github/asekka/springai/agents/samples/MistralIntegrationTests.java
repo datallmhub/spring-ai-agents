@@ -7,6 +7,7 @@ import io.github.asekka.springai.agents.core.Agent;
 import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentResult;
 import io.github.asekka.springai.agents.core.StateKey;
+import io.github.asekka.springai.agents.core.ToolCallRecord;
 import io.github.asekka.springai.agents.graph.AgentGraph;
 import io.github.asekka.springai.agents.graph.AgentListener;
 import io.github.asekka.springai.agents.graph.Edge;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -179,6 +181,46 @@ class MistralIntegrationTests {
         assertThat(result.text()).isNotBlank();
         assertThat(transitions.get()).isGreaterThanOrEqualTo(1);
     }
+
+    @Test
+    void toolCallHandoffCapturesNameArgumentsAndResult() {
+        AtomicInteger callCount = new AtomicInteger();
+        FunctionToolCallback<WeatherRequest, String> weather = FunctionToolCallback
+                .builder("lookup_weather", (WeatherRequest req) -> {
+                    callCount.incrementAndGet();
+                    return "{\"city\":\"" + req.city() + "\",\"tempC\":12,\"condition\":\"rainy\"}";
+                })
+                .description("Return the current weather as JSON for a given city.")
+                .inputType(WeatherRequest.class)
+                .build();
+
+        ExecutorAgent agent = ExecutorAgent.builder()
+                .name("weather-bot")
+                .chatClient(chatClient())
+                .systemPrompt("You are a helpful assistant. "
+                        + "When asked about the weather, call the lookup_weather tool.")
+                .tools(weather)
+                .build();
+
+        AgentResult result = agent.execute(
+                AgentContext.of("What's the weather in Paris right now?"));
+
+        assertThat(result.completed()).isTrue();
+        assertThat(callCount.get()).isGreaterThanOrEqualTo(1);
+        assertThat(result.toolCalls())
+                .as("framework must capture the tool invocation")
+                .isNotEmpty();
+        ToolCallRecord first = result.toolCalls().get(0);
+        assertThat(first.name()).isEqualTo("lookup_weather");
+        assertThat(first.arguments()).containsKey("city");
+        assertThat(first.arguments().get("city").toString()).containsIgnoringCase("Paris");
+        assertThat(first.success()).isTrue();
+        assertThat(first.result()).contains("rainy");
+        assertThat(first.sequence()).isEqualTo(1);
+        assertThat(first.durationMs()).isGreaterThanOrEqualTo(0L);
+    }
+
+    public record WeatherRequest(String city) {}
 
     @SpringBootApplication
     static class TestApp {

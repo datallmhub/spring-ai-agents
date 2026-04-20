@@ -16,6 +16,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.lang.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 public final class ExecutorAgent implements Agent {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExecutorAgent.class);
@@ -43,14 +44,16 @@ public final class ExecutorAgent implements Agent {
     @Override
     public AgentResult execute(AgentContext context) {
         log.info("executor.run: executor={}", name);
+        ToolCallCollector collector = new ToolCallCollector();
         try {
-            ChatResponse response = buildSpec(context).call().chatResponse();
+            ChatResponse response = buildSpec(context, collector).call().chatResponse();
             String content = response != null && response.getResult() != null
                     && response.getResult().getOutput() != null
                             ? response.getResult().getOutput().getText()
                             : null;
             return AgentResult.builder()
                     .text(content)
+                    .toolCalls(collector.snapshot())
                     .completed(true)
                     .usage(extractUsage(response))
                     .build();
@@ -81,18 +84,25 @@ public final class ExecutorAgent implements Agent {
     @Override
     public Flux<AgentEvent> executeStream(AgentContext context) {
         StringBuilder buffer = new StringBuilder();
-        Flux<AgentEvent> tokens = buildSpec(context).stream()
+        Sinks.Many<AgentEvent> toolEvents = Sinks.many().multicast().onBackpressureBuffer();
+        ToolCallCollector collector = new ToolCallCollector(evt -> toolEvents.tryEmitNext(evt));
+        Flux<AgentEvent> tokens = buildSpec(context, collector).stream()
                 .content()
                 .map(chunk -> {
                     buffer.append(chunk);
                     return (AgentEvent) AgentEvent.token(chunk);
-                });
-        Mono<AgentEvent> completion = Mono.fromSupplier(
-                () -> AgentEvent.completed(AgentResult.ofText(buffer.toString())));
-        return tokens.concatWith(completion);
+                })
+                .doOnTerminate(toolEvents::tryEmitComplete);
+        Mono<AgentEvent> completion = Mono.fromSupplier(() -> AgentEvent.completed(
+                AgentResult.builder()
+                        .text(buffer.toString())
+                        .toolCalls(collector.snapshot())
+                        .completed(true)
+                        .build()));
+        return Flux.merge(tokens, toolEvents.asFlux()).concatWith(completion);
     }
 
-    private ChatClient.ChatClientRequestSpec buildSpec(AgentContext context) {
+    private ChatClient.ChatClientRequestSpec buildSpec(AgentContext context, ToolCallCollector collector) {
         ChatClient.ChatClientRequestSpec spec = chatClient.prompt();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             spec = spec.system(systemPrompt);
@@ -101,7 +111,11 @@ public final class ExecutorAgent implements Agent {
             spec = spec.messages(ensureSafeMessageOrder(context.messages()));
         }
         if (!tools.isEmpty()) {
-            spec = spec.toolCallbacks(tools.toArray(new ToolCallback[0]));
+            ToolCallback[] wrapped = new ToolCallback[tools.size()];
+            for (int i = 0; i < tools.size(); i++) {
+                wrapped[i] = new RecordingToolCallback(tools.get(i), collector);
+            }
+            spec = spec.toolCallbacks(wrapped);
         }
         return spec;
     }

@@ -4,12 +4,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
 import org.springframework.lang.Nullable;
 
 public record AgentResult(
         @Nullable String text,
-        List<ToolCall> toolCalls,
+        List<ToolCallRecord> toolCalls,
         @Nullable Object structuredOutput,
         Map<StateKey<?>, Object> stateUpdates,
         boolean completed,
@@ -58,7 +57,7 @@ public record AgentResult(
 
     public static final class Builder {
         private String text;
-        private List<ToolCall> toolCalls = List.of();
+        private List<ToolCallRecord> toolCalls = List.of();
         private Object structuredOutput;
         private Map<StateKey<?>, Object> stateUpdates = Map.of();
         private boolean completed = true;
@@ -71,7 +70,7 @@ public record AgentResult(
             return this;
         }
 
-        public Builder toolCalls(List<ToolCall> toolCalls) {
+        public Builder toolCalls(List<ToolCallRecord> toolCalls) {
             this.toolCalls = toolCalls == null ? List.of() : List.copyOf(toolCalls);
             return this;
         }

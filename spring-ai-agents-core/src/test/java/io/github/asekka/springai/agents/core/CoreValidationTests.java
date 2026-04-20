@@ -50,12 +50,22 @@ class CoreValidationTests {
     }
 
     @Test
-    void toolCallStartCopiesArgsMap() {
+    void toolCallStartCopiesArgumentsMap() {
         java.util.Map<String, Object> args = new java.util.HashMap<>();
         args.put("k", "v");
         AgentEvent.ToolCallStart evt = new AgentEvent.ToolCallStart("tool", args);
         args.put("k2", "v2");
-        assertThat(evt.args()).hasSize(1);
+        assertThat(evt.toolName()).isEqualTo("tool");
+        assertThat(evt.arguments()).hasSize(1).containsEntry("k", "v");
+    }
+
+    @Test
+    void toolCallEndCarriesRecord() {
+        ToolCallRecord rec = ToolCallRecord.success(1, "tool", java.util.Map.of("x", 1), "42", 12L);
+        AgentEvent.ToolCallEnd evt = new AgentEvent.ToolCallEnd(rec);
+        assertThat(evt.record()).isSameAs(rec);
+        assertThat(evt.record().success()).isTrue();
+        assertThat(evt.record().sequence()).isEqualTo(1);
     }
 
     @Test
