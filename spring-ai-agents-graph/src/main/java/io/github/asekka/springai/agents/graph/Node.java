@@ -22,15 +22,28 @@ public interface Node {
         return null;
     }
 
+    @Nullable
+    default CircuitBreakerPolicy circuitBreaker() {
+        return null;
+    }
+
     static Node of(String name, Agent agent) {
-        return new AgentNode(name, agent, null);
+        return new AgentNode(name, agent, null, null);
     }
 
     static Node of(String name, Agent agent, RetryPolicy retryPolicy) {
-        return new AgentNode(name, agent, retryPolicy);
+        return new AgentNode(name, agent, retryPolicy, null);
     }
 
-    record AgentNode(String name, Agent agent, @Nullable RetryPolicy retryPolicy) implements Node {
+    static Node of(String name, Agent agent, RetryPolicy retryPolicy, CircuitBreakerPolicy circuitBreaker) {
+        return new AgentNode(name, agent, retryPolicy, circuitBreaker);
+    }
+
+    record AgentNode(
+            String name,
+            Agent agent,
+            @Nullable RetryPolicy retryPolicy,
+            @Nullable CircuitBreakerPolicy circuitBreaker) implements Node {
         @Override
         public AgentResult execute(AgentContext context) {
             return agent.execute(context);

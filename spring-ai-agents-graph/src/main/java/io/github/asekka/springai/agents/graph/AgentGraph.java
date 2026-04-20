@@ -379,7 +379,10 @@ public final class AgentGraph implements Agent {
 
     private AgentResult tryExecute(Node node, AgentContext context, int retryCount) {
         try {
-            AgentResult result = node.execute(context);
+            CircuitBreakerPolicy cb = node.circuitBreaker();
+            AgentResult result = cb != null
+                    ? cb.execute(node.name(), () -> node.execute(context))
+                    : node.execute(context);
             AgentError err = result.error();
             if (err != null) {
                 return AgentResult.failed(err.withRetryCount(retryCount));
@@ -495,6 +498,12 @@ public final class AgentGraph implements Agent {
         public Builder addNode(String name, Agent agent, RetryPolicy nodeRetryPolicy) {
             return addNode(Node.of(name, agent,
                     Objects.requireNonNull(nodeRetryPolicy, "nodeRetryPolicy")));
+        }
+
+        public Builder addNode(String name, Agent agent,
+                               @Nullable RetryPolicy nodeRetryPolicy,
+                               @Nullable CircuitBreakerPolicy circuitBreaker) {
+            return addNode(Node.of(name, agent, nodeRetryPolicy, circuitBreaker));
         }
 
         public Builder addNode(Node node) {
