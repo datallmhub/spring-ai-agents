@@ -13,7 +13,7 @@
 
     <artifactId>spring-ai-agents-checkpoint</artifactId>
     <name>spring-ai-agents-checkpoint</name>
-    <description>Checkpoint serialization (Jackson DTOs) and JDBC store</description>
+    <description>Checkpoint serialization (Jackson DTOs) with JDBC and Redis stores</description>
 
     <dependencies>
         <dependency>
@@ -40,6 +40,11 @@
             <artifactId>spring-jdbc</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
@@ -57,6 +62,11 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
