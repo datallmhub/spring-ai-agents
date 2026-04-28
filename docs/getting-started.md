@@ -129,7 +129,7 @@ graph.invokeStream(AgentContext.of("hello"))
 
 ## Configuration
 
-See [Annex A of the spec](../CAHIER-DES-CHARGES.md). Minimal `application.yml`:
+See [Annex A of the design notes (FR)](design/cahier-des-charges.md). Minimal `application.yml`:
 
 ```yaml
 spring:
