@@ -386,20 +386,6 @@ AgentGraph.builder()
 
 ---
 
-## Modules
-
-| Module | What it provides |
-|--------|-----------------|
-| `spring-ai-agents-core` | `Agent`, `AgentContext`, `AgentResult`, `AgentEvent`, `StateKey`, `StateBag` |
-| `spring-ai-agents-graph` | `AgentGraph`, `Node`, `Edge`, `ErrorPolicy`, `RetryPolicy`, `CircuitBreakerPolicy`, `AgentListener`, `CheckpointStore` |
-| `spring-ai-agents-squad` | `CoordinatorAgent`, `ExecutorAgent` (with typed `outputKey`), `RoutingStrategy`, `ReActAgent`, `ParallelAgent` |
-| `spring-ai-agents-checkpoint` | `JacksonCheckpointCodec`, `JdbcCheckpointStore`, `RedisCheckpointStore`, `StateTypeRegistry` |
-| `spring-ai-agents-resilience4j` | `Resilience4jCircuitBreakerPolicy` backed by Resilience4j |
-| `spring-ai-agents-test` | `MockAgent`, `TestGraph` — test without a real LLM |
-| `spring-ai-agents-starter` | Auto-configuration, Micrometer, `application.yml` binding |
-
----
-
 ## Testing without an LLM
 
 ```java
