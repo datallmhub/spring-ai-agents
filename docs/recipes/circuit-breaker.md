@@ -12,7 +12,7 @@ provider-agnostic `CircuitBreakerPolicy` SPI; the
 <dependency>
     <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-resilience4j</artifactId>
-    <version>v0.4.0</version>
+    <version>v0.4.1</version>
 </dependency>
 ```
 

@@ -102,19 +102,23 @@ A conditional edge verifying `result.text().contains("APPROVED")` can break if t
 
 ## Why spring-ai-agents?
 
-Spring AI gives you a `ChatClient`. That's one agent talking to one LLM.
+Spring AI provides the building blocks for LLM integration: `ChatClient`,
+tool callbacks, advisors, and patterns for tool-augmented agents. When you
+move from a single LLM call to **stateful, multi-step, multi-agent** systems,
+you typically end up writing the orchestration, persistence, and resilience
+yourself.
 
-Real-world problems need **multiple agents working together**:
+`spring-ai-agents` is that missing layer — a structured runtime that sits
+**on top of** Spring AI, not in opposition to it.
 
-| Spring AI alone | spring-ai-agents |
+| Spring AI | spring-ai-agents (built on top) |
 |---|---|
-| Single ChatClient call | Multi-agent coordination |
-| Manual routing (`if`/`switch`) | LLM-driven or rule-based routing |
-| No workflow structure | Graph-based orchestration |
-| Stateless calls | Typed shared state (`StateKey<T>`) |
-| DIY error handling | `RetryPolicy` (exp. backoff + jitter) and `CircuitBreakerPolicy`, per-node |
-| No durability | JDBC and Redis `CheckpointStore` with interrupt/resume |
-| No observability | Micrometer metrics out of the box |
+| Low-level primitives (`ChatClient`, tools, advisors) | Structured agent runtime (`Agent`, `AgentGraph`, `Squad`) |
+| Code-driven orchestration (flexible, unstructured) | Graph-based orchestration with explicit edges & cycles |
+| No built-in durable state | Typed shared state (`StateKey<T>`) + JDBC/Redis checkpoints |
+| Error handling left to application code | `RetryPolicy` (exp. backoff + jitter) and `CircuitBreakerPolicy`, per-node |
+| No native interrupt/resume | First-class `interrupted(...)` + `graph.resume(runId, ...)` |
+| Observability via app-level integration | Built-in Micrometer metrics through the starter |
 
 ---
 
@@ -137,7 +141,7 @@ Distributed via [JitPack](https://jitpack.io).
 <dependency>
     <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>v0.4.0</version>
+    <version>v0.4.1</version>
 </dependency>
 ```
 
@@ -149,7 +153,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.datallmhub.spring-ai-agents:spring-ai-agents-starter:v0.4.0'
+    implementation 'com.github.datallmhub.spring-ai-agents:spring-ai-agents-starter:v0.4.1'
 }
 ```
 

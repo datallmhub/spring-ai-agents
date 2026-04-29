@@ -20,7 +20,7 @@ when `spring-data-redis` is on the classpath.
 <dependency>
     <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-checkpoint</artifactId>
-    <version>v0.4.0</version>
+    <version>v0.4.1</version>
 </dependency>
 ```
 

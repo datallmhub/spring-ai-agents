@@ -25,7 +25,7 @@ Distributed via JitPack — declare the repository, then the starter:
 <dependency>
     <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>v0.4.0</version>
+    <version>v0.4.1</version>
 </dependency>
 ```
 
