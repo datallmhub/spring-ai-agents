@@ -20,10 +20,13 @@ import io.github.asekka.springai.agents.core.AgentUsage;
 
 public final class ParallelAgent implements Agent {
 
+    public static final int DEFAULT_MAX_CONCURRENCY = 8;
+
     private final String name;
     private final Map<String, Agent> branches;
     private final Combiner combiner;
     private final Duration timeout;
+    private final int maxConcurrency;
 
     private ParallelAgent(Builder b) {
         if (b.branches.isEmpty()) {
@@ -33,6 +36,7 @@ public final class ParallelAgent implements Agent {
         this.branches = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(b.branches));
         this.combiner = Objects.requireNonNull(b.combiner, "combiner");
         this.timeout = b.timeout;
+        this.maxConcurrency = b.maxConcurrency;
     }
 
     public static Builder builder() {
@@ -46,7 +50,7 @@ public final class ParallelAgent implements Agent {
     @Override
     public AgentResult execute(AgentContext context) {
         List<String> order = new ArrayList<>(branches.keySet());
-        ExecutorService pool = Executors.newFixedThreadPool(Math.min(order.size(), 8));
+        ExecutorService pool = Executors.newFixedThreadPool(Math.min(order.size(), maxConcurrency));
         try {
             List<CompletableFuture<AgentResult>> futures = new ArrayList<>(order.size());
             for (String branchName : order) {
@@ -119,9 +123,19 @@ public final class ParallelAgent implements Agent {
         private final Map<String, Agent> branches = new LinkedHashMap<>();
         private Combiner combiner = concatTexts("\n\n");
         private Duration timeout;
+        private int maxConcurrency = DEFAULT_MAX_CONCURRENCY;
 
         public Builder name(String name) {
             this.name = Objects.requireNonNull(name, "name");
+            return this;
+        }
+
+        public Builder maxConcurrency(int maxConcurrency) {
+            if (maxConcurrency < 1) {
+                throw new IllegalArgumentException(
+                        "maxConcurrency must be >= 1, got " + maxConcurrency);
+            }
+            this.maxConcurrency = maxConcurrency;
             return this;
         }
 

@@ -22,8 +22,26 @@ Agent fanOut = ParallelAgent.builder()
 AgentResult result = fanOut.execute(AgentContext.of("What's blocking Q3?"));
 ```
 
-Branches run on a bounded thread pool (`min(N, 8)`). The iteration order is the
-declaration order — combiners receive an ordered `Map<String, AgentResult>`.
+Branches run on a bounded thread pool. The iteration order is the declaration
+order — combiners receive an ordered `Map<String, AgentResult>`.
+
+## Bounding concurrency
+
+By default the pool is sized at `min(N, 8)` where `N` is the number of branches.
+Override with `maxConcurrency` when you need to throttle expensive upstreams
+(rate-limited LLMs, paid APIs, scarce DB connections):
+
+```java
+ParallelAgent.builder()
+        .branch("openai-1", a)
+        .branch("openai-2", b)
+        .branch("openai-3", c)
+        .maxConcurrency(2)        // at most 2 branches in flight
+        .build();
+```
+
+`maxConcurrency(1)` serialises branches in declaration order — useful in tests
+or when an upstream cannot tolerate any concurrency. Values must be `>= 1`.
 
 ## Combining results
 
@@ -77,4 +95,5 @@ branches complete, `ParallelAgent` returns a failed result carrying a
   need per-branch state propagated back into the graph, merge it inside your
   `Combiner` via `AgentResult.Builder.stateUpdates(...)`.
 - **Tool calls.** Each branch's `ChatClient` is independent; provider rate
-  limits apply per-branch. The bounded pool (max 8 concurrent) caps load.
+  limits apply per-branch. Use `maxConcurrency(...)` to cap load against shared
+  upstreams.

@@ -108,4 +108,36 @@ class ParallelAgentTests {
                 .build())
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    void maxConcurrencyOneSerializesBranches() throws Exception {
+        AtomicInteger inFlight = new AtomicInteger();
+        AtomicInteger peak = new AtomicInteger();
+
+        Agent slow = ctx -> {
+            int n = inFlight.incrementAndGet();
+            peak.accumulateAndGet(n, Math::max);
+            try { Thread.sleep(20); } catch (InterruptedException ignored) {}
+            inFlight.decrementAndGet();
+            return AgentResult.ofText("x");
+        };
+
+        ParallelAgent parallel = ParallelAgent.builder()
+                .branch("a", slow)
+                .branch("b", slow)
+                .branch("c", slow)
+                .maxConcurrency(1)
+                .build();
+
+        parallel.execute(AgentContext.of("go"));
+        assertThat(peak.get()).isEqualTo(1);
+    }
+
+    @Test
+    void builderRejectsNonPositiveMaxConcurrency() {
+        assertThatThrownBy(() -> ParallelAgent.builder().maxConcurrency(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ParallelAgent.builder().maxConcurrency(-3))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
