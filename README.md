@@ -120,7 +120,11 @@ Real-world problems need **multiple agents working together**:
 
 ## Installation
 
-Distributed via [JitPack](https://jitpack.io). Add the repository, then the starter:
+**Requirements:** Java 17+, Spring Boot 3.x, Spring AI 1.0+ (only when using `ExecutorAgent` or the starter).
+
+Distributed via [JitPack](https://jitpack.io).
+
+### Maven
 
 ```xml
 <repositories>
@@ -136,6 +140,33 @@ Distributed via [JitPack](https://jitpack.io). Add the repository, then the star
     <version>v0.4.0</version>
 </dependency>
 ```
+
+### Gradle
+
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.github.datallmhub.spring-ai-agents:spring-ai-agents-starter:v0.4.0'
+}
+```
+
+### Modules
+
+The starter pulls everything you typically need. Pick individual modules when
+you want a smaller footprint or run outside Spring Boot:
+
+| Module | Use case |
+|---|---|
+| `spring-ai-agents-starter` | Spring Boot auto-config, properties, Micrometer listener |
+| `spring-ai-agents-core` | Minimal API (`Agent`, `AgentContext`, `StateKey`, `AgentResult`) |
+| `spring-ai-agents-graph` | `AgentGraph`, `RetryPolicy`, `CircuitBreakerPolicy` SPI, checkpoint contract |
+| `spring-ai-agents-squad` | `CoordinatorAgent`, `ExecutorAgent`, `ReActAgent`, `ParallelAgent`, `RoutingStrategy` |
+| `spring-ai-agents-checkpoint` | `JdbcCheckpointStore`, `RedisCheckpointStore`, Jackson codec |
+| `spring-ai-agents-resilience4j` | `CircuitBreakerPolicy` adapter backed by Resilience4j |
+| `spring-ai-agents-test` | `MockAgent`, `TestGraph` for unit-testing graphs |
 
 The starter auto-configures everything. Minimal `application.yml`:
 
