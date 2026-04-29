@@ -120,13 +120,20 @@ Real-world problems need **multiple agents working together**:
 
 ## Installation
 
-Add the starter to your `pom.xml`:
+Distributed via [JitPack](https://jitpack.io). Add the repository, then the starter:
 
 ```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
 <dependency>
-    <groupId>io.github.asekka</groupId>
+    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>v0.4.0</version>
 </dependency>
 ```
 

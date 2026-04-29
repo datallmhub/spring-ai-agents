@@ -12,11 +12,20 @@ A multi-agent orchestration layer for Spring AI, inspired by LangGraph / CrewAI
 
 ## Add the starter
 
+Distributed via JitPack — declare the repository, then the starter:
+
 ```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
 <dependency>
-    <groupId>io.github.asekka</groupId>
+    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-starter</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>v0.4.0</version>
 </dependency>
 ```
 

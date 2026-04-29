@@ -10,9 +10,9 @@ provider-agnostic `CircuitBreakerPolicy` SPI; the
 
 ```xml
 <dependency>
-    <groupId>io.github.asekka</groupId>
+    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-resilience4j</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>v0.4.0</version>
 </dependency>
 ```
 

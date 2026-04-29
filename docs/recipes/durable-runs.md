@@ -18,9 +18,9 @@ when `spring-data-redis` is on the classpath.
 
 ```xml
 <dependency>
-    <groupId>io.github.asekka</groupId>
+    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
     <artifactId>spring-ai-agents-checkpoint</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>v0.4.0</version>
 </dependency>
 ```
 
