@@ -12,7 +12,7 @@
 
     <name>spring-ai-agents</name>
     <description>Multi-agent orchestration framework on top of Spring AI</description>
-    <url>https://github.com/asekka/spring-ai-agents</url>
+    <url>https://github.com/datallmhub/spring-ai-agents</url>
 
     <licenses>
         <license>

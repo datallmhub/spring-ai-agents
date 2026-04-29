@@ -2,7 +2,7 @@
 
 **Coordinate multiple specialized agents in Spring Boot — without writing orchestration logic.**
 
-[![build](https://github.com/asekka/spring-ai-agents/actions/workflows/build.yml/badge.svg)](https://github.com/asekka/spring-ai-agents/actions)
+[![build](https://github.com/datallmhub/spring-ai-agents/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-ai-agents/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0-green)](https://docs.spring.io/spring-ai/reference/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -46,7 +46,7 @@ No `while` loops. No manual routing. Just agents that collaborate.
 Clone and run any of the 3 examples. They use simulated agents, no API key required.
 
 ```bash
-git clone https://github.com/asekka/spring-ai-agents.git
+git clone https://github.com/datallmhub/spring-ai-agents.git
 cd spring-ai-agents
 mvn install -DskipTests -q
 mvn -pl spring-ai-agents-samples exec:java     # runs MultiAgentCoordination by default
