@@ -1,6 +1,7 @@
 # spring-agent-flow
 
-**Build stateful, multi-step AI workflows in Spring Boot — without writing orchestration logic.**
+**Stateful agent workflow runtime for Spring AI (Java).**
+Orchestrate multi-step LLM calls, tool invocations, and shared typed state in a single graph — without writing orchestration logic.
 
 [![build](https://github.com/datallmhub/spring-agent-flow/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-agent-flow/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
