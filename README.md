@@ -49,47 +49,37 @@ Clone and run any of the 3 examples. They use simulated agents, no API key requi
 git clone https://github.com/asekka/spring-ai-agents.git
 cd spring-ai-agents
 mvn install -DskipTests -q
-mvn -pl spring-ai-agents-samples exec:java \
-    -Dexec.mainClass="io.github.asekka.springai.agents.samples.AdvancedGraphDemo"
+mvn -pl spring-ai-agents-samples exec:java     # runs MultiAgentCoordination by default
 ```
 
 Output:
 
 ```
-=== Advanced Graph with Conditional Routing ===
+=== Multi-Agent Coordination ===
 
-[listener]  ENTER research
-[research]  Gathering data on AI agents...
-[listener]  EXIT  research (0ms)
-[listener]  → research → analyze
-[listener]  ENTER analyze
-[analyze]   Confidence: 0.50 — needs more research
-[listener]  EXIT  analyze (0ms)
-[listener]  → analyze → research          ← conditional loop back!
-[listener]  ENTER research
-[research]  Gathering data on AI agents...
-[listener]  EXIT  research (0ms)
-[listener]  → research → analyze
-[listener]  ENTER analyze
-[analyze]   Confidence: 0.90 — analysis complete
-[listener]  EXIT  analyze (0ms)
-[listener]  → analyze → write             ← confidence OK, moving forward
-[listener]  ENTER write
-[write]     Writing final report...
-[listener]  EXIT  write (0ms)
-[listener]  ✓ Graph complete
+Request: "Research the latest advances in quantum computing"
+[router]   Routing to: research
+[research] Searching for: quantum computing
 
-Final report:
-  AI agent frameworks enable multi-step LLM workflows.
-  Confidence: 0.90. Research iterations: 2.
+Result: Found 3 papers on quantum error correction (2026).
+        Key finding: logical qubit fidelity reached 99.8%.
+
+---
+
+Request: "Write a blog post about the findings"
+[router]   Routing to: writing
+[writing]  Generating content...
+
+Result: # Quantum Computing in 2026
+        Logical qubit fidelity has reached 99.8%, marking a milestone...
 ```
 
 **All 3 samples:**
 
 | Example | What it shows | Run with |
 |---------|--------------|----------|
+| `MultiAgentCoordination` (default) | Squad API + routing | `mvn -pl spring-ai-agents-samples exec:java` |
 | `MinimalPipeline` | Two-step graph | `-Dexec.mainClass="...samples.MinimalPipeline"` |
-| `MultiAgentCoordination` | Squad API + routing | `-Dexec.mainClass="...samples.MultiAgentCoordination"` |
 | `AdvancedGraphDemo` | Conditional loops, state, listener | `-Dexec.mainClass="...samples.AdvancedGraphDemo"` |
 
 ---
