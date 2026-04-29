@@ -7,18 +7,18 @@
 
     <parent>
         <groupId>io.github.asekka</groupId>
-        <artifactId>spring-ai-agents-parent</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <artifactId>spring-agent-flow-parent</artifactId>
+        <version>0.5.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-ai-agents-squad</artifactId>
-    <name>spring-ai-agents-squad</name>
+    <artifactId>spring-agent-flow-squad</artifactId>
+    <name>spring-agent-flow-squad</name>
     <description>Roles: CoordinatorAgent, ExecutorAgent, RoutingStrategy</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-core</artifactId>
+            <artifactId>spring-agent-flow-core</artifactId>
         </dependency>
 
         <dependency>

@@ -23,9 +23,9 @@ Distributed via JitPack — declare the repository, then the starter:
 </repositories>
 
 <dependency>
-    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
-    <artifactId>spring-ai-agents-starter</artifactId>
-    <version>v0.4.1</version>
+    <groupId>com.github.datallmhub.spring-agent-flow</groupId>
+    <artifactId>spring-agent-flow-starter</artifactId>
+    <version>v0.5.0</version>
 </dependency>
 ```
 
@@ -55,12 +55,12 @@ Distributed via JitPack — declare the repository, then the starter:
   (`addNode(name, agent, policy)`). Retains `ErrorPolicy.RETRY_ONCE` as a
   compatibility shim. See [resilient-typed-executor.md](recipes/resilient-typed-executor.md).
 - **`CircuitBreakerPolicy`**: graph-module SPI with a no-op default; a
-  Resilience4j adapter lives in `spring-ai-agents-resilience4j`. Applied
+  Resilience4j adapter lives in `spring-agent-flow-resilience4j`. Applied
   per-node so retries iterate through the breaker. See
   [circuit-breaker.md](recipes/circuit-breaker.md).
 - **Durable checkpoints**: `JdbcCheckpointStore` (portable upsert, H2/Postgres/
   MySQL) and `RedisCheckpointStore` (optional TTL) ship in
-  `spring-ai-agents-checkpoint` alongside a Jackson codec with a
+  `spring-agent-flow-checkpoint` alongside a Jackson codec with a
   `StateTypeRegistry` whitelist. See
   [durable-runs.md](recipes/durable-runs.md).
 
@@ -150,7 +150,7 @@ spring:
         metrics: true
 ```
 
-Properties are bound by `spring-ai-agents-starter`. When a `MeterRegistry` bean
+Properties are bound by `spring-agent-flow-starter`. When a `MeterRegistry` bean
 is present, the starter registers a `MicrometerAgentListener` that emits
 `agents.execution.count`, `agents.execution.duration`, `agents.graph.transitions`,
 and `agents.execution.errors`.

@@ -1,4 +1,4 @@
-# spring-ai-agents — Cahier des Charges
+# spring-agent-flow — Cahier des Charges
 
 **Version :** 1.2 (clarifications API et state lifecycle)
 **Date :** Avril 2026
@@ -8,7 +8,7 @@
 
 ## 🎯 Promesse
 
-> **spring-ai-agents** permet de coordonner plusieurs agents spécialisés dans des applications Spring Boot sans écrire de logique d'orchestration.
+> **spring-agent-flow** permet de coordonner plusieurs agents spécialisés dans des applications Spring Boot sans écrire de logique d'orchestration.
 
 **Exemple minimal :**
 
@@ -213,7 +213,7 @@ Responsabilités :
 
 ### 3.4 Intégration Spring
 
-- Auto-configuration Spring Boot via `spring-ai-agents-starter`
+- Auto-configuration Spring Boot via `spring-agent-flow-starter`
 - Injection de `ChatClient` dans les agents
 - Configuration via `application.yml` (voir annexe A)
 - Compatibilité avec `ChatMemory` existant
@@ -268,12 +268,12 @@ public record AgentError(
 ### 4.2 Architecture modulaire
 
 ```
-spring-ai-agents/
-├── spring-ai-agents-core/         Agent, AgentContext, AgentResult, AgentEvent, StateKey/StateBag
-├── spring-ai-agents-graph/        AgentGraph, Node, Edge, ErrorPolicy
-├── spring-ai-agents-squad/        CoordinatorAgent, ExecutorAgent, RoutingStrategy
-├── spring-ai-agents-test/         MockAgent, TestGraph, fixtures JUnit
-└── spring-ai-agents-starter/      Auto-configuration Spring Boot
+spring-agent-flow/
+├── spring-agent-flow-core/         Agent, AgentContext, AgentResult, AgentEvent, StateKey/StateBag
+├── spring-agent-flow-graph/        AgentGraph, Node, Edge, ErrorPolicy
+├── spring-agent-flow-squad/        CoordinatorAgent, ExecutorAgent, RoutingStrategy
+├── spring-agent-flow-test/         MockAgent, TestGraph, fixtures JUnit
+└── spring-agent-flow-starter/      Auto-configuration Spring Boot
 ```
 
 ---
@@ -424,7 +424,7 @@ spring:
 ```xml
 <dependency>
     <groupId>io.github.asekka</groupId>
-    <artifactId>spring-ai-agents-starter</artifactId>
+    <artifactId>spring-agent-flow-starter</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```

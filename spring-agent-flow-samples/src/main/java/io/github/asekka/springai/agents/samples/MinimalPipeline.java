@@ -32,7 +32,7 @@ public final class MinimalPipeline {
             System.out.println("[summarize] Processing...");
             String input = ctx.messages().get(0).getText();
             return AgentResult.ofText(
-                    "Summary: spring-ai-agents is a multi-agent coordination "
+                    "Summary: spring-agent-flow is a multi-agent coordination "
                   + "framework for Spring Boot that eliminates manual orchestration logic.");
         };
 
@@ -52,7 +52,7 @@ public final class MinimalPipeline {
 
         // Run
         AgentResult result = graph.invoke(
-                AgentContext.of("What is spring-ai-agents?"));
+                AgentContext.of("What is spring-agent-flow?"));
 
         System.out.println();
         System.out.println("Final output:");

@@ -7,26 +7,26 @@
 
     <parent>
         <groupId>io.github.asekka</groupId>
-        <artifactId>spring-ai-agents-parent</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <artifactId>spring-agent-flow-parent</artifactId>
+        <version>0.5.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-ai-agents-starter</artifactId>
-    <name>spring-ai-agents-starter</name>
-    <description>Spring Boot auto-configuration for spring-ai-agents</description>
+    <artifactId>spring-agent-flow-starter</artifactId>
+    <name>spring-agent-flow-starter</name>
+    <description>Spring Boot auto-configuration for spring-agent-flow</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-core</artifactId>
+            <artifactId>spring-agent-flow-core</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-graph</artifactId>
+            <artifactId>spring-agent-flow-graph</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-squad</artifactId>
+            <artifactId>spring-agent-flow-squad</artifactId>
         </dependency>
 
         <dependency>

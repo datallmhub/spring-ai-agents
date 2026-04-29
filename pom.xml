@@ -6,13 +6,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.asekka</groupId>
-    <artifactId>spring-ai-agents-parent</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <artifactId>spring-agent-flow-parent</artifactId>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>spring-ai-agents</name>
+    <name>spring-agent-flow</name>
     <description>Multi-agent orchestration framework on top of Spring AI</description>
-    <url>https://github.com/datallmhub/spring-ai-agents</url>
+    <url>https://github.com/datallmhub/spring-agent-flow</url>
 
     <licenses>
         <license>
@@ -22,14 +22,14 @@
     </licenses>
 
     <modules>
-        <module>spring-ai-agents-core</module>
-        <module>spring-ai-agents-graph</module>
-        <module>spring-ai-agents-squad</module>
-        <module>spring-ai-agents-checkpoint</module>
-        <module>spring-ai-agents-resilience4j</module>
-        <module>spring-ai-agents-test</module>
-        <module>spring-ai-agents-starter</module>
-        <module>spring-ai-agents-samples</module>
+        <module>spring-agent-flow-core</module>
+        <module>spring-agent-flow-graph</module>
+        <module>spring-agent-flow-squad</module>
+        <module>spring-agent-flow-checkpoint</module>
+        <module>spring-agent-flow-resilience4j</module>
+        <module>spring-agent-flow-test</module>
+        <module>spring-agent-flow-starter</module>
+        <module>spring-agent-flow-samples</module>
     </modules>
 
     <properties>
@@ -65,32 +65,32 @@
 
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-core</artifactId>
+                <artifactId>spring-agent-flow-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-graph</artifactId>
+                <artifactId>spring-agent-flow-graph</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-squad</artifactId>
+                <artifactId>spring-agent-flow-squad</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-test</artifactId>
+                <artifactId>spring-agent-flow-test</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-checkpoint</artifactId>
+                <artifactId>spring-agent-flow-checkpoint</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.asekka</groupId>
-                <artifactId>spring-ai-agents-resilience4j</artifactId>
+                <artifactId>spring-agent-flow-resilience4j</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

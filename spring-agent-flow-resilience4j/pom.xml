@@ -7,36 +7,33 @@
 
     <parent>
         <groupId>io.github.asekka</groupId>
-        <artifactId>spring-ai-agents-parent</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <artifactId>spring-agent-flow-parent</artifactId>
+        <version>0.5.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-ai-agents-test</artifactId>
-    <name>spring-ai-agents-test</name>
-    <description>Test fixtures: MockAgent, TestGraph runner</description>
+    <artifactId>spring-agent-flow-resilience4j</artifactId>
+    <name>spring-agent-flow-resilience4j</name>
+    <description>Resilience4j adapters (CircuitBreakerPolicy) for spring-agent-flow</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-core</artifactId>
+            <artifactId>spring-agent-flow-graph</artifactId>
         </dependency>
+
         <dependency>
-            <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-graph</artifactId>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

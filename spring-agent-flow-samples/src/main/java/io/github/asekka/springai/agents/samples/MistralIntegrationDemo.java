@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Run with:
  * <pre>
- * MISTRAL_API_KEY=your-key mvn -pl spring-ai-agents-samples \
+ * MISTRAL_API_KEY=your-key mvn -pl spring-agent-flow-samples \
  *     spring-boot:run -Dspring-boot.run.mainClass=...MistralIntegrationDemo
  * </pre>
  *
@@ -60,7 +60,7 @@ public class MistralIntegrationDemo implements CommandLineRunner {
             log.error("\n❌ ERROR: MISTRAL_API_KEY environment variable is not set.");
             log.error("Please export your Mistral API key before running this demo:\n");
             log.error("export MISTRAL_API_KEY=\"your_key_here\"");
-            log.error("mvn -pl spring-ai-agents-samples exec:java -Dexec.mainClass=\"io.github.asekka.springai.agents.samples.MistralIntegrationDemo\"\n");
+            log.error("mvn -pl spring-agent-flow-samples exec:java -Dexec.mainClass=\"io.github.asekka.springai.agents.samples.MistralIntegrationDemo\"\n");
             System.exit(1);
         }
 

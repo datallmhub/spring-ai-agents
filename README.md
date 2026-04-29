@@ -1,8 +1,8 @@
-# spring-ai-agents
+# spring-agent-flow
 
 **Build stateful, multi-step AI workflows in Spring Boot — without writing orchestration logic.**
 
-[![build](https://github.com/datallmhub/spring-ai-agents/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-ai-agents/actions)
+[![build](https://github.com/datallmhub/spring-agent-flow/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-agent-flow/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0-green)](https://docs.spring.io/spring-ai/reference/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -76,10 +76,10 @@ No `while` loops. No manual routing. Just agents that collaborate.
 Clone and run any of the 3 examples. They use simulated agents, no API key required.
 
 ```bash
-git clone https://github.com/datallmhub/spring-ai-agents.git
-cd spring-ai-agents
+git clone https://github.com/datallmhub/spring-agent-flow.git
+cd spring-agent-flow
 mvn install -DskipTests -q
-mvn -pl spring-ai-agents-samples exec:java     # runs MultiAgentCoordination by default
+mvn -pl spring-agent-flow-samples exec:java     # runs MultiAgentCoordination by default
 ```
 
 Output:
@@ -108,7 +108,7 @@ Result: # Quantum Computing in 2026
 
 | Example | What it shows | Run with |
 |---------|--------------|----------|
-| `MultiAgentCoordination` (default) | Squad API + routing | `mvn -pl spring-ai-agents-samples exec:java` |
+| `MultiAgentCoordination` (default) | Squad API + routing | `mvn -pl spring-agent-flow-samples exec:java` |
 | `MinimalPipeline` | Two-step graph | `-Dexec.mainClass="...samples.MinimalPipeline"` |
 | `AdvancedGraphDemo` | Conditional loops, state, listener | `-Dexec.mainClass="...samples.AdvancedGraphDemo"` |
 
@@ -116,7 +116,7 @@ Result: # Quantum Computing in 2026
 
 ## Working with real LLMs (Safety & Constraints)
 
-While this framework handles complex logic routing, executing graphs against live APIs (Mistral, OpenAI, Anthropic) requires managing their physical limitations. `spring-ai-agents` incorporates safety features to counteract these common pitfalls:
+While this framework handles complex logic routing, executing graphs against live APIs (Mistral, OpenAI, Anthropic) requires managing their physical limitations. `spring-agent-flow` incorporates safety features to counteract these common pitfalls:
 
 **1. Strict Message Alternation (Safe Defaults)**
 Some providers (like Mistral) will crash with `HTTP 400 Bad Request` if your prompt ends with an `AssistantMessage` or contains consecutive identical roles. During node chaining (A → B → C), `ExecutorAgent` uses built-in **Safe Message Ordering** to transparently interleave a padding `UserMessage` when required to prevent structure violations.
@@ -142,7 +142,7 @@ As soon as your system requires:
 
 you start writing orchestration code. This project removes that layer.
 
-| Spring AI | spring-ai-agents (built on top) |
+| Spring AI | spring-agent-flow (built on top) |
 |---|---|
 | Low-level primitives (`ChatClient`, tools, advisors) | Structured agent runtime (`Agent`, `AgentGraph`, `Squad`) |
 | Code-driven orchestration (flexible, unstructured) | Graph-based orchestration with explicit edges & cycles |
@@ -170,9 +170,9 @@ Distributed via [JitPack](https://jitpack.io).
 </repositories>
 
 <dependency>
-    <groupId>com.github.datallmhub.spring-ai-agents</groupId>
-    <artifactId>spring-ai-agents-starter</artifactId>
-    <version>v0.4.1</version>
+    <groupId>com.github.datallmhub.spring-agent-flow</groupId>
+    <artifactId>spring-agent-flow-starter</artifactId>
+    <version>v0.5.0</version>
 </dependency>
 ```
 
@@ -184,7 +184,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.datallmhub.spring-ai-agents:spring-ai-agents-starter:v0.4.1'
+    implementation 'com.github.datallmhub.spring-agent-flow:spring-agent-flow-starter:v0.5.0'
 }
 ```
 
@@ -195,13 +195,13 @@ you want a smaller footprint or run outside Spring Boot:
 
 | Module | Use case |
 |---|---|
-| `spring-ai-agents-starter` | Spring Boot auto-config, properties, Micrometer listener |
-| `spring-ai-agents-core` | Minimal API (`Agent`, `AgentContext`, `StateKey`, `AgentResult`) |
-| `spring-ai-agents-graph` | `AgentGraph`, `RetryPolicy`, `CircuitBreakerPolicy` SPI, checkpoint contract |
-| `spring-ai-agents-squad` | `CoordinatorAgent`, `ExecutorAgent`, `ReActAgent`, `ParallelAgent`, `RoutingStrategy` |
-| `spring-ai-agents-checkpoint` | `JdbcCheckpointStore`, `RedisCheckpointStore`, Jackson codec |
-| `spring-ai-agents-resilience4j` | `CircuitBreakerPolicy` adapter backed by Resilience4j |
-| `spring-ai-agents-test` | `MockAgent`, `TestGraph` for unit-testing graphs |
+| `spring-agent-flow-starter` | Spring Boot auto-config, properties, Micrometer listener |
+| `spring-agent-flow-core` | Minimal API (`Agent`, `AgentContext`, `StateKey`, `AgentResult`) |
+| `spring-agent-flow-graph` | `AgentGraph`, `RetryPolicy`, `CircuitBreakerPolicy` SPI, checkpoint contract |
+| `spring-agent-flow-squad` | `CoordinatorAgent`, `ExecutorAgent`, `ReActAgent`, `ParallelAgent`, `RoutingStrategy` |
+| `spring-agent-flow-checkpoint` | `JdbcCheckpointStore`, `RedisCheckpointStore`, Jackson codec |
+| `spring-agent-flow-resilience4j` | `CircuitBreakerPolicy` adapter backed by Resilience4j |
+| `spring-agent-flow-test` | `MockAgent`, `TestGraph` for unit-testing graphs |
 
 The starter auto-configures everything. Minimal `application.yml`:
 
@@ -296,7 +296,7 @@ double score = ctx.get(CONFIDENCE);  // no cast needed
 ┌─────────────────────────────────────────────────┐
 │                 Your Application                │
 ├─────────────────────────────────────────────────┤
-│ spring-ai-agents-starter (auto-config, metrics) │
+│ spring-agent-flow-starter (auto-config, metrics) │
 ├──────────────┬──────────────────┬───────────────┤
 │ checkpoint   │ resilience4j     │               │
 │ JDBC, Redis  │ CircuitBreaker   │               │
@@ -308,7 +308,7 @@ double score = ctx.get(CONFIDENCE);  // no cast needed
 │   ReActAgent         │   CheckpointStore        │
 │   ParallelAgent      │   ErrorPolicy            │
 ├──────────────────────┴──────────────────────────┤
-│ spring-ai-agents-core                           │
+│ spring-agent-flow-core                           │
 │ Agent, AgentContext, AgentResult, AgentEvent     │
 │ StateKey, StateBag                              │
 ├─────────────────────────────────────────────────┤
@@ -337,7 +337,7 @@ AgentGraph.builder()
 - **`RetryPolicy`** — bounded jitter `[cap*(1-f), cap]` so retries never
   exceed `maxDelay`; per-node override wins over the graph default.
 - **`CircuitBreakerPolicy`** — SPI lives in the graph module (R4j-free).
-  `spring-ai-agents-resilience4j` ships an adapter backed by Resilience4j's
+  `spring-agent-flow-resilience4j` ships an adapter backed by Resilience4j's
   `CircuitBreakerRegistry` (per-node breakers) or a shared breaker for
   aggregate counting.
 - **`ErrorPolicy.SKIP_NODE`** — propagate past a blown breaker when the rest

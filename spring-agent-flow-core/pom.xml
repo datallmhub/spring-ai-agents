@@ -7,23 +7,26 @@
 
     <parent>
         <groupId>io.github.asekka</groupId>
-        <artifactId>spring-ai-agents-parent</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <artifactId>spring-agent-flow-parent</artifactId>
+        <version>0.5.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-ai-agents-resilience4j</artifactId>
-    <name>spring-ai-agents-resilience4j</name>
-    <description>Resilience4j adapters (CircuitBreakerPolicy) for spring-ai-agents</description>
+    <artifactId>spring-agent-flow-core</artifactId>
+    <name>spring-agent-flow-core</name>
+    <description>Core domain model: Agent, AgentContext, AgentResult, AgentEvent, StateBag</description>
 
     <dependencies>
         <dependency>
-            <groupId>io.github.asekka</groupId>
-            <artifactId>spring-ai-agents-graph</artifactId>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>io.github.resilience4j</groupId>
-            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
         </dependency>
 
         <dependency>
