@@ -1,11 +1,41 @@
 # spring-ai-agents
 
-**Coordinate multiple specialized agents in Spring Boot — without writing orchestration logic.**
+**Build stateful, multi-step AI workflows in Spring Boot — without writing orchestration logic.**
 
 [![build](https://github.com/datallmhub/spring-ai-agents/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-ai-agents/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0-green)](https://docs.spring.io/spring-ai/reference/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
+> Independent project — not affiliated with [`spring-ai-community/spring-ai-agents`](https://github.com/spring-ai-community/spring-ai-agents), which is the official AgentClient abstraction over CLI agents (Claude Code, Codex, Gemini, etc.). This repository has a different scope: a graph-based runtime for stateful agent **workflows** on top of Spring AI.
+
+---
+
+## What problem does this solve?
+
+Real-world AI systems quickly move past a single `ChatClient` call:
+
+- multi-step pipelines (research → analyse → draft → review)
+- multiple agents coordinating on one task
+- transient errors, rate limits, partial failures
+- state that must survive a crash or wait on human input
+
+You end up writing the orchestration, the retries, the resume logic. This
+project replaces that scaffolding with a structured runtime — an
+`AgentGraph` for explicit flow, `RetryPolicy` and `CircuitBreakerPolicy`
+for resilience, durable checkpoints for resume.
+
+### When should I use this?
+
+Use it when **at least one** of these is true:
+
+- the agent needs more than one LLM call to finish the job
+- the workflow has branches, loops, or human-in-the-loop pauses
+- failure recovery (retry, breaker, resume after crash) is in scope
+- multiple tools or agents must coordinate around shared, typed state
+
+**Don't** use it for a single LLM call with a stateless prompt — Spring AI's
+`ChatClient` already covers that cleanly.
 
 ---
 
