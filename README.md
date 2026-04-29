@@ -130,16 +130,17 @@ A conditional edge verifying `result.text().contains("APPROVED")` can break if t
 
 ---
 
-## Why spring-ai-agents?
+## Why not just use Spring AI?
 
-Spring AI provides the building blocks for LLM integration: `ChatClient`,
-tool callbacks, advisors, and patterns for tool-augmented agents. When you
-move from a single LLM call to **stateful, multi-step, multi-agent** systems,
-you typically end up writing the orchestration, persistence, and resilience
-yourself.
+Spring AI is perfect for single-step interactions.
 
-`spring-ai-agents` is that missing layer — a structured runtime that sits
-**on top of** Spring AI, not in opposition to it.
+As soon as your system requires:
+
+- multiple steps
+- retries and recovery
+- coordination between components
+
+you start writing orchestration code. This project removes that layer.
 
 | Spring AI | spring-ai-agents (built on top) |
 |---|---|
