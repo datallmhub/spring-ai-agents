@@ -202,6 +202,7 @@ you want a smaller footprint or run outside Spring Boot:
 | `spring-agent-flow-squad` | `CoordinatorAgent`, `ExecutorAgent`, `ReActAgent`, `ParallelAgent`, `RoutingStrategy` |
 | `spring-agent-flow-checkpoint` | `JdbcCheckpointStore`, `RedisCheckpointStore`, Jackson codec |
 | `spring-agent-flow-resilience4j` | `CircuitBreakerPolicy` adapter backed by Resilience4j |
+| `spring-agent-flow-cli-agents` | `CliAgentNode` — runs Claude Code / Codex / Gemini CLI agents as graph nodes |
 | `spring-agent-flow-test` | `MockAgent`, `TestGraph` for unit-testing graphs |
 
 The starter auto-configures everything. Minimal `application.yml`:
