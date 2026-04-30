@@ -1,7 +1,8 @@
 # spring-agent-flow
 
 **Stateful multi-agent orchestration for Spring AI.**
-Design and run long-lived agent workflows with state, retries, and graph execution — all in Java, without manual orchestration code.
+
+Design and run long-lived agent workflows with state, retries, and graph execution, all in Java, without manual orchestration code.
 
 [![build](https://github.com/datallmhub/spring-agent-flow/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-agent-flow/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
