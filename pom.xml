@@ -27,6 +27,7 @@
         <module>spring-agent-flow-squad</module>
         <module>spring-agent-flow-checkpoint</module>
         <module>spring-agent-flow-resilience4j</module>
+        <module>spring-agent-flow-cli-agents</module>
         <module>spring-agent-flow-test</module>
         <module>spring-agent-flow-starter</module>
         <module>spring-agent-flow-samples</module>
@@ -91,6 +92,11 @@
             <dependency>
                 <groupId>io.github.asekka</groupId>
                 <artifactId>spring-agent-flow-resilience4j</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.asekka</groupId>
+                <artifactId>spring-agent-flow-cli-agents</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
