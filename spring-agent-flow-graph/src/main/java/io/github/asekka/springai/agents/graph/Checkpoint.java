@@ -4,7 +4,7 @@ import java.util.Objects;
 
 import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.InterruptRequest;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public record Checkpoint(
         String runId,

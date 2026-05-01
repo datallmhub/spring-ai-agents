@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.ToolCallRecord;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 final class ToolCallCollector {
 

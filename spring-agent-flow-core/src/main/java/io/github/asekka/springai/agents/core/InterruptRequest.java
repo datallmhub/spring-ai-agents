@@ -2,7 +2,7 @@ package io.github.asekka.springai.agents.core;
 
 import java.util.Objects;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public record InterruptRequest(String reason, @Nullable Object payload) {
 

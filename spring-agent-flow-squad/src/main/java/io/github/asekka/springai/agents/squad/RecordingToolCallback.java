@@ -10,7 +10,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.ai.util.json.JsonParser;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 final class RecordingToolCallback implements ToolCallback {
 

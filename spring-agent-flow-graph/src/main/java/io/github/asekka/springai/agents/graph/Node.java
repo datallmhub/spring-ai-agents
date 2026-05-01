@@ -4,7 +4,7 @@ import io.github.asekka.springai.agents.core.Agent;
 import io.github.asekka.springai.agents.core.AgentContext;
 import io.github.asekka.springai.agents.core.AgentEvent;
 import io.github.asekka.springai.agents.core.AgentResult;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 
 public interface Node {
