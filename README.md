@@ -13,6 +13,11 @@ Design and run long-lived agent workflows with state, retries, and graph executi
 
 ---
 
+<img width="1241" height="1268" alt="image" src="https://github.com/user-attachments/assets/eae4248e-779d-423a-b5f0-8e7ebba5d9c0" />
+
+
+
+
 ## What problem does this solve?
 
 Real-world AI systems quickly move past a single `ChatClient` call:
