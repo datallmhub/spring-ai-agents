@@ -1,168 +1,161 @@
 # spring-agent-flow
 
-**Stateful multi-agent orchestration for Spring AI.**
+**Build stateful multi-agent workflows in Java — with graphs, retries, and persistence.**
 
-Design and run long-lived agent workflows with state, retries, and graph execution, all in Java, without manual orchestration code.
+No orchestration code. No glue logic. Just define your agents and run.
 
 [![build](https://github.com/datallmhub/spring-agent-flow/actions/workflows/build.yml/badge.svg)](https://github.com/datallmhub/spring-agent-flow/actions)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue)](https://adoptium.net/)
 [![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0-green)](https://docs.spring.io/spring-ai/reference/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-> Independent project — not affiliated with [`spring-ai-community/agent-client`](https://github.com/spring-ai-community/agent-client), which is Spring AI Community `AgentClient` abstraction over CLI agents (Claude Code, Codex, Gemini, etc.). This repository has a different scope: a graph-based runtime for stateful agent **workflows** on top of Spring AI.
+---
+
+> Independent project — not affiliated with [`spring-ai-community/agent-client`](https://github.com/spring-ai-community/agent-client), which is the official AgentClient abstraction over CLI agents (Claude Code, Codex, Gemini, etc.). This repository has a different scope: a graph-based runtime for stateful agent **workflows** on top of Spring AI.
 
 ---
 
-<img width="1241" height="1268" alt="image" src="https://github.com/user-attachments/assets/eae4248e-779d-423a-b5f0-8e7ebba5d9c0" />
-
-
-
-
-## What problem does this solve?
-
-Real-world AI systems quickly move past a single `ChatClient` call:
-
-- multi-step pipelines (research → analyse → draft → review)
-- multiple agents coordinating on one task
-- transient errors, rate limits, partial failures
-- state that must survive a crash or wait on human input
-
-You end up writing the orchestration, the retries, the resume logic. This
-project replaces that scaffolding with a structured runtime — an
-`AgentGraph` for explicit flow, `RetryPolicy` and `CircuitBreakerPolicy`
-for resilience, durable checkpoints for resume.
-
-### When should I use this?
-
-Use it when **at least one** of these is true:
-
-- the agent needs more than one LLM call to finish the job
-- the workflow has branches, loops, or human-in-the-loop pauses
-- failure recovery (retry, breaker, resume after crash) is in scope
-- multiple tools or agents must coordinate around shared, typed state
-
-**Don't** use it for a single LLM call with a stateless prompt — Spring AI's
-`ChatClient` already covers that cleanly.
-
----
-
-## 60 seconds to multi-agent
+## ⚡ In 60 seconds
 
 ```java
-// 1. Define specialized agents
 ExecutorAgent researcher = ExecutorAgent.builder()
         .chatClient(chatClient)
-        .systemPrompt("You are a research specialist. Find key facts.")
-        .tools(searchTool, wikipediaTool)
+        .systemPrompt("Find key facts.")
         .build();
 
 ExecutorAgent writer = ExecutorAgent.builder()
         .chatClient(chatClient)
-        .systemPrompt("Write a clear report from the research findings.")
+        .systemPrompt("Write a clear report.")
         .build();
 
-// 2. Let a coordinator route dynamically
 CoordinatorAgent coordinator = CoordinatorAgent.builder()
         .executors(Map.of("research", researcher, "writing", writer))
         .routingStrategy(RoutingStrategy.llmDriven(chatClient))
         .build();
 
-// 3. Run
 AgentResult result = coordinator.execute(
-        AgentContext.of("Compare Claude 4 and GPT-5 for enterprise use"));
+        AgentContext.of("Compare Claude 4 and GPT-5"));
 
 System.out.println(result.text());
 ```
 
-No `while` loops. No manual routing. Just agents that collaborate.
+👉 No loops. No routing logic. Just agents collaborating.
 
 ---
 
-## Try it now — no LLM needed
+## 🧠 Why this exists
 
-Clone and run any of the 3 examples. They use simulated agents, no API key required.
+Real-world AI systems are not one LLM call.
+
+They are:
+
+- multi-step
+- stateful
+- failure-prone
+- long-running
+
+Spring AI gives you primitives.
+**spring-agent-flow gives you a runtime.**
+
+---
+
+## 📊 How it works
+
+![How it works](docs/images/demo.png)
+
+---
+
+## 🧭 When should I use this?
+
+**Use it if:**
+
+- your agent needs multiple LLM calls
+- your workflow has branches or loops
+- failures (retry, resume, rate limits) matter
+- multiple agents must coordinate
+
+**Don't use it if:**
+
+- you just call `ChatClient` once
+
+---
+
+## ⚔️ Why not just Spring AI?
+
+| Spring AI | spring-agent-flow |
+|---|---|
+| Primitives (`ChatClient`, tools) | Structured runtime (`AgentGraph`, `CoordinatorAgent`) |
+| Manual orchestration | Graph-based execution |
+| No durable state | Typed shared state + checkpoints |
+| Retry logic in user code | Built-in retry + circuit breaker |
+| No resume | Interrupt + resume support |
+
+---
+
+## ⚔️ Why not loops or LangChain-style flows?
+
+Because:
+
+- loops don't scale
+- retries are hard
+- state becomes fragile
+
+spring-agent-flow gives you:
+
+- explicit execution graphs
+- resilience by default
+- durable, typed state
+
+---
+
+## 🚀 Try it now (no LLM required)
 
 ```bash
 git clone https://github.com/datallmhub/spring-agent-flow.git
 cd spring-agent-flow
 mvn install -DskipTests -q
-mvn -pl spring-agent-flow-samples exec:java     # runs MultiAgentCoordination by default
+mvn -pl spring-agent-flow-samples exec:java
 ```
 
-Output:
+## 📦 Samples included
 
-```
-=== Multi-Agent Coordination ===
+The project ships with ready-to-run examples — no LLM required.
 
-Request: "Research the latest advances in quantum computing"
-[router]   Routing to: research
-[research] Searching for: quantum computing
+| Example | What it shows | Run |
+|--------|--------------|-----|
+| `MultiAgentCoordination` | Multi-agent routing with CoordinatorAgent | default |
+| `MinimalPipeline` | Simple 2-step workflow using AgentGraph | `-Dexec.mainClass="...MinimalPipeline"` |
+| `AdvancedGraphDemo` | Loops, conditions, state, listeners | `-Dexec.mainClass="...AdvancedGraphDemo"` |
 
-Result: Found 3 papers on quantum error correction (2026).
-        Key finding: logical qubit fidelity reached 99.8%.
+Run all samples:
 
----
-
-Request: "Write a blog post about the findings"
-[router]   Routing to: writing
-[writing]  Generating content...
-
-Result: # Quantum Computing in 2026
-        Logical qubit fidelity has reached 99.8%, marking a milestone...
+```bash
+mvn -pl spring-agent-flow-samples exec:java
 ```
 
-**All 3 samples:**
+---
 
-| Example | What it shows | Run with |
-|---------|--------------|----------|
-| `MultiAgentCoordination` (default) | Squad API + routing | `mvn -pl spring-agent-flow-samples exec:java` |
-| `MinimalPipeline` | Two-step graph | `-Dexec.mainClass="...samples.MinimalPipeline"` |
-| `AdvancedGraphDemo` | Conditional loops, state, listener | `-Dexec.mainClass="...samples.AdvancedGraphDemo"` |
+## 🧩 What you get
+
+- 🧠 Stateful agent workflows
+- 🔁 Built-in retries & circuit breakers
+- 📊 Graph-based execution
+- 💾 Durable checkpoints (JDBC / Redis)
+- 🔌 Native Spring AI integration
+- 📡 Streaming support
+- 📈 Micrometer metrics
 
 ---
 
-## Working with real LLMs (Safety & Constraints)
+## 🧱 Architecture
 
-While this framework handles complex logic routing, executing graphs against live APIs (Mistral, OpenAI, Anthropic) requires managing their physical limitations. `spring-agent-flow` incorporates safety features to counteract these common pitfalls:
-
-**1. Strict Message Alternation (Safe Defaults)**
-Some providers (like Mistral) will crash with `HTTP 400 Bad Request` if your prompt ends with an `AssistantMessage` or contains consecutive identical roles. During node chaining (A → B → C), `ExecutorAgent` uses built-in **Safe Message Ordering** to transparently interleave a padding `UserMessage` when required to prevent structure violations.
-
-**2. Rate Limiting & Transient Errors**
-Agentic graphs generate requests instantly. A 3-step pipeline fires 3 requests in under 2 seconds. Free-tier architectures (typically 1 request/sec) will fail with `429 Too Many Requests` or `503 Service Unavailable`.
-*Solution*: Your components should rely on `.errorPolicy(ErrorPolicy.RETRY_ONCE)` mapped to Spring AI's automatic Retry mechanisms, or manually interleave non-blocking delays in intensive ReAct loops.
-
-**3. Non-deterministic Routing**
-A conditional edge verifying `result.text().contains("APPROVED")` can break if the agent suddenly decides to output `"Document is approved"` instead of exact text. Always implement fuzzy matching or use LLM structured JSON output mappings for robust conditional routing rules.
+![Modules Architecture](docs/images/modules-architecture.png)
 
 ---
 
-## Why not just use Spring AI?
+## 🛠 Installation
 
-Spring AI is perfect for single-step interactions.
-
-As soon as your system requires:
-
-- multiple steps
-- retries and recovery
-- coordination between components
-
-you start writing orchestration code. This project removes that layer.
-
-| Spring AI | spring-agent-flow (built on top) |
-|---|---|
-| Low-level primitives (`ChatClient`, tools, advisors) | Structured agent runtime (`Agent`, `AgentGraph`, `Squad`) |
-| Code-driven orchestration (flexible, unstructured) | Graph-based orchestration with explicit edges & cycles |
-| No built-in durable state | Typed shared state (`StateKey<T>`) + JDBC/Redis checkpoints |
-| Error handling left to application code | `RetryPolicy` (exp. backoff + jitter) and `CircuitBreakerPolicy`, per-node |
-| No native interrupt/resume | First-class `interrupted(...)` + `graph.resume(runId, ...)` |
-| Observability via app-level integration | Built-in Micrometer metrics through the starter |
-
----
-
-## Installation
-
-**Requirements:** Java 17+, Spring Boot 3.x, Spring AI 1.0+ (only when using `ExecutorAgent` or the starter).
+**Requirements:** Java 17+, Spring Boot 3.x, Spring AI 1.0+
 
 Distributed via [JitPack](https://jitpack.io).
 
@@ -197,9 +190,6 @@ dependencies {
 
 ### Modules
 
-The starter pulls everything you typically need. Pick individual modules when
-you want a smaller footprint or run outside Spring Boot:
-
 | Module | Use case |
 |---|---|
 | `spring-agent-flow-starter` | Spring Boot auto-config, properties, Micrometer listener |
@@ -211,7 +201,7 @@ you want a smaller footprint or run outside Spring Boot:
 | `spring-agent-flow-cli-agents` | `CliAgentNode` — runs Claude Code / Codex / Gemini CLI agents as graph nodes |
 | `spring-agent-flow-test` | `MockAgent`, `TestGraph` for unit-testing graphs |
 
-The starter auto-configures everything. Minimal `application.yml`:
+Minimal `application.yml`:
 
 ```yaml
 spring:
@@ -225,11 +215,11 @@ spring:
 
 ---
 
-## Two levels of control
+## 🧠 Two levels of control
 
 ### Level 1 — Squad API (recommended)
 
-The default. A `CoordinatorAgent` routes to `ExecutorAgent`s. You focus on the agents, not the plumbing.
+Dynamic routing, minimal setup. A `CoordinatorAgent` routes to `ExecutorAgent`s — you focus on the agents, not the plumbing.
 
 ```java
 CoordinatorAgent coordinator = CoordinatorAgent.builder()
@@ -244,9 +234,9 @@ CoordinatorAgent coordinator = CoordinatorAgent.builder()
 AgentResult result = coordinator.execute(AgentContext.of("..."));
 ```
 
-### Level 2 — Graph API (when you need fine control)
+### Level 2 — Graph API
 
-For explicit sequencing, conditional branching, or cycles (ReAct loops):
+Explicit flows, loops, conditions, full control.
 
 ```java
 AgentGraph graph = AgentGraph.builder()
@@ -266,9 +256,7 @@ AgentResult result = graph.invoke(AgentContext.of("..."));
 
 ---
 
-## Streaming
-
-Every agent supports `Flux<AgentEvent>` out of the box:
+## 📡 Streaming
 
 ```java
 graph.invokeStream(AgentContext.of("hello"))
@@ -284,7 +272,7 @@ graph.invokeStream(AgentContext.of("hello"))
 
 ---
 
-## Typed state — no `Map<String, Object>`
+## 💾 Typed state — no `Map<String, Object>`
 
 ```java
 // Declare keys with types — compile-time safety
@@ -298,39 +286,7 @@ double score = ctx.get(CONFIDENCE);  // no cast needed
 
 ---
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                 Your Application                │
-├─────────────────────────────────────────────────┤
-│ spring-agent-flow-starter (auto-config, metrics) │
-├──────────────┬──────────────────┬───────────────┤
-│ checkpoint   │ resilience4j     │               │
-│ JDBC, Redis  │ CircuitBreaker   │               │
-├──────────────┴──────────────────┴───────────────┤
-│   squad              │   graph                  │
-│   CoordinatorAgent   │   AgentGraph (runtime)   │
-│   ExecutorAgent      │   Node, Edge             │
-│   RoutingStrategy    │   RetryPolicy, CB SPI    │
-│   ReActAgent         │   CheckpointStore        │
-│   ParallelAgent      │   ErrorPolicy            │
-├──────────────────────┴──────────────────────────┤
-│ spring-agent-flow-core                           │
-│ Agent, AgentContext, AgentResult, AgentEvent     │
-│ StateKey, StateBag                              │
-├─────────────────────────────────────────────────┤
-│                   Spring AI                     │
-│           ChatClient, ToolCallbacks             │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## Resilience
-
-Three layers compose: error policy (what to do on failure), retry (how to
-recover from transient failure), circuit breaker (when to stop trying).
+## 🔁 Resilience
 
 ```java
 AgentGraph.builder()
@@ -342,23 +298,11 @@ AgentGraph.builder()
     .build();
 ```
 
-- **`RetryPolicy`** — bounded jitter `[cap*(1-f), cap]` so retries never
-  exceed `maxDelay`; per-node override wins over the graph default.
-- **`CircuitBreakerPolicy`** — SPI lives in the graph module (R4j-free).
-  `spring-agent-flow-resilience4j` ships an adapter backed by Resilience4j's
-  `CircuitBreakerRegistry` (per-node breakers) or a shared breaker for
-  aggregate counting.
-- **`ErrorPolicy.SKIP_NODE`** — propagate past a blown breaker when the rest
-  of the graph can still make useful progress.
-
-See [resilient-typed-executor.md](docs/recipes/resilient-typed-executor.md)
-and [circuit-breaker.md](docs/recipes/circuit-breaker.md).
+See [resilient-typed-executor.md](docs/recipes/resilient-typed-executor.md) and [circuit-breaker.md](docs/recipes/circuit-breaker.md).
 
 ---
 
-## Observability (Micrometer)
-
-When a `MeterRegistry` is available, the starter registers metrics automatically:
+## 📈 Observability (Micrometer)
 
 | Metric | Tags | Description |
 |--------|------|-------------|
@@ -367,34 +311,9 @@ When a `MeterRegistry` is available, the starter registers metrics automatically
 | `agents.graph.transitions` | `graph`, `from`, `to` | Node-to-node transitions |
 | `agents.execution.errors` | `agent`, `graph`, `cause` | Error count by type |
 
-Custom instrumentation via `AgentListener`:
-
-```java
-AgentGraph.builder()
-    .listener(new AgentListener() {
-        @Override
-        public void onNodeExit(String g, String node, AgentResult r, long ns) {
-            log.info("{} completed in {}ms", node, ns / 1_000_000);
-        }
-    })
-```
-
 ---
 
-## Recipes
-
-- [ReAct loop](docs/recipes/react-loop.md) — self-correcting agent with observation/action cycles
-- [Supervisor pattern](docs/recipes/supervisor-pattern.md) — coordinator re-routes until done
-- [Parallel executors](docs/recipes/parallel-executors.md) — fan-out/fan-in
-- [Subgraphs](docs/recipes/subgraphs.md) — plug a graph in as a node
-- [Human-in-the-loop](docs/recipes/human-in-the-loop.md) — interrupt, wait for human input, resume
-- [Durable runs](docs/recipes/durable-runs.md) — JDBC or Redis checkpoint store, resume after crash
-- [Resilient typed executor](docs/recipes/resilient-typed-executor.md) — tool audit + typed output + retry
-- [Circuit breaker](docs/recipes/circuit-breaker.md) — trip upstream calls with Resilience4j
-
----
-
-## Testing without an LLM
+## 🧪 Testing without an LLM
 
 ```java
 MockAgent mock = MockAgent.builder()
@@ -416,26 +335,42 @@ assertThat(result.text()).isEqualTo("done");
 
 ---
 
-## Requirements
+## 📚 Recipes
 
-- Java 17+
-- Spring Boot 3.x
-- Spring AI 1.0+
+- [ReAct loop](docs/recipes/react-loop.md) — self-correcting agent with observation/action cycles
+- [Supervisor pattern](docs/recipes/supervisor-pattern.md) — coordinator re-routes until done
+- [Parallel executors](docs/recipes/parallel-executors.md) — fan-out/fan-in
+- [Subgraphs](docs/recipes/subgraphs.md) — plug a graph in as a node
+- [Human-in-the-loop](docs/recipes/human-in-the-loop.md) — interrupt, wait for human input, resume
+- [Durable runs](docs/recipes/durable-runs.md) — JDBC or Redis checkpoint store, resume after crash
+- [Resilient typed executor](docs/recipes/resilient-typed-executor.md) — tool audit + typed output + retry
+- [Circuit breaker](docs/recipes/circuit-breaker.md) — trip upstream calls with Resilience4j
 
 ---
 
-## Roadmap
+## 📈 Roadmap
 
 | Version | Focus |
 |---------|-------|
-| **0.4** (current) | Subgraphs, parallel fan-out, cancellation, typed output, `RetryPolicy`, `CircuitBreakerPolicy`, JDBC/Redis checkpoint store |
+| **0.5** (current) | Subgraphs, parallel fan-out, cancellation, typed output, `RetryPolicy`, `CircuitBreakerPolicy`, JDBC/Redis checkpoint store |
 | **1.0** | API stabilization, documentation, community feedback |
 | **1.1** | Crew roles (CrewAI-inspired), auto-config for checkpoint backends |
 | **2.0** | OpenTelemetry tracing, MCP integration, Agent-as-Tool |
 
 ---
 
-## Contributing
+## 📝 Note on scope
+
+This project is independent and not affiliated with [`spring-ai-community/agent-client`](https://github.com/spring-ai-community/agent-client).
+
+That project focuses on CLI agent integrations (Claude Code, Codex, Gemini).
+
+**spring-agent-flow** focuses on something different:
+a graph-based runtime for stateful, multi-step agent workflows on top of Spring AI.
+
+---
+
+## 🤝 Contributing
 
 Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -449,3 +384,7 @@ This project follows the [Apache 2.0 License](LICENSE).
 - [CrewAI](https://github.com/joaomdmoura/crewai) — role-based agent teams
 - [AWS Strands](https://github.com/strands-agents/sdk-java) — agent patterns for Java
 - [Spring AI](https://github.com/spring-projects/spring-ai) — the foundation we build on
+
+---
+
+⭐ **If this saves you time, consider starring the repo**
