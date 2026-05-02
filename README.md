@@ -11,10 +11,6 @@ No orchestration code. No glue logic. Just define your agents and run.
 
 ---
 
-> Independent project — not affiliated with [`spring-ai-community/agent-client`](https://github.com/spring-ai-community/agent-client), which is the official AgentClient abstraction over CLI agents (Claude Code, Codex, Gemini, etc.). This repository has a different scope: a graph-based runtime for stateful agent **workflows** on top of Spring AI.
-
----
-
 ## ⚡ In 60 seconds
 
 ```java
