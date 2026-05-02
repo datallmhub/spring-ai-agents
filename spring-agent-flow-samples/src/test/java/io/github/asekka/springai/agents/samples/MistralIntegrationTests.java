@@ -183,6 +183,87 @@ class MistralIntegrationTests {
     }
 
     @Test
+    void techStackAdvisorScenario() {
+        ChatClient cc = chatClient();
+        StateKey<String> CONSTRAINTS = StateKey.of("constraints", String.class);
+        StateKey<String> PATTERN = StateKey.of("pattern", String.class);
+
+        ExecutorAgent researcher = ExecutorAgent.builder()
+                .name("researcher").chatClient(cc)
+                .systemPrompt("Extract key constraints from the user request (volume, latency, domain). Reply concisely.")
+                .build();
+                
+        io.github.asekka.springai.agents.core.Agent statefulResearcher = ctx -> {
+            AgentResult result = researcher.execute(ctx);
+            return AgentResult.builder()
+                    .text(result.text())
+                    .completed(result.completed())
+                    .stateUpdates(Map.of(CONSTRAINTS, result.text()))
+                    .build();
+        };
+
+        ExecutorAgent analyzer = ExecutorAgent.builder()
+                .name("analyzer").chatClient(cc)
+                .systemPrompt("Analyze the constraints and recommend an architectural pattern (e.g., streaming, batch, microservices). Reply with the pattern only.")
+                .build();
+
+        io.github.asekka.springai.agents.core.Agent statefulAnalyzer = ctx -> {
+            AgentContext enrichedCtx = ctx.withMessage(new org.springframework.ai.chat.messages.UserMessage("Constraints: " + ctx.get(CONSTRAINTS)));
+            AgentResult result = analyzer.execute(enrichedCtx);
+            return AgentResult.builder()
+                    .text(result.text())
+                    .completed(result.completed())
+                    .stateUpdates(Map.of(PATTERN, result.text()))
+                    .build();
+        };
+
+        ExecutorAgent writer = ExecutorAgent.builder()
+                .name("writer").chatClient(cc)
+                .systemPrompt("Write a final technology stack recommendation based on the architectural pattern and constraints.")
+                .build();
+                
+        io.github.asekka.springai.agents.core.Agent statefulWriter = ctx -> {
+            AgentContext enrichedCtx = ctx.withMessage(new org.springframework.ai.chat.messages.UserMessage("Constraints: " + ctx.get(CONSTRAINTS) + "\nPattern: " + ctx.get(PATTERN)));
+            AgentResult result = writer.execute(enrichedCtx);
+            return AgentResult.builder()
+                    .text(result.text())
+                    .completed(result.completed())
+                    .stateUpdates(Map.of(
+                            CONSTRAINTS, ctx.get(CONSTRAINTS),
+                            PATTERN, ctx.get(PATTERN)
+                    ))
+                    .build();
+        };
+
+        AtomicInteger nodesVisited = new AtomicInteger();
+        AgentListener counter = new AgentListener() {
+            @Override public void onNodeEnter(String g, String node, AgentContext context) {
+                nodesVisited.incrementAndGet();
+            }
+        };
+
+        AgentGraph graph = AgentGraph.builder()
+                .name("tech-stack-advisor")
+                .addNode("research", statefulResearcher)
+                .addNode("analyze", statefulAnalyzer)
+                .addNode("write", statefulWriter)
+                .addEdge("research", "analyze")
+                .addEdge("analyze", "write")
+                .listener(counter)
+                .build();
+
+        AgentResult result = graph.invoke(
+                AgentContext.of("I need to build a real-time fraud detection system processing 10k transactions/second"));
+
+        assertThat(result.completed()).isTrue();
+        assertThat(result.text()).isNotBlank();
+        assertThat(result.text().toLowerCase()).containsAnyOf("kafka", "streaming", "flink", "redis", "architecture", "fraud");
+        assertThat((String) result.stateUpdates().get(CONSTRAINTS)).isNotBlank();
+        assertThat((String) result.stateUpdates().get(PATTERN)).isNotBlank();
+        assertThat(nodesVisited.get()).isEqualTo(3);
+    }
+
+    @Test
     void toolCallHandoffCapturesNameArgumentsAndResult() {
         AtomicInteger callCount = new AtomicInteger();
         FunctionToolCallback<WeatherRequest, String> weather = FunctionToolCallback
