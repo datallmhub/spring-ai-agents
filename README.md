@@ -35,9 +35,27 @@ AgentResult result = coordinator.execute(
 System.out.println(result.text());
 ```
 
-👉 No loops. No routing logic. Just agents collaborating.
+**Output:**
+
+```
+=== Multi-Agent Coordination ===
+
+Request: Compare Claude 4 and GPT-5
+
+[router]   Routing to: research
+[research] Gathering facts...
+
+[router]   Routing to: writing
+[writing]  Generating report...
+
+Result:
+Claude 4 excels in reasoning and long-context tasks.
+GPT-5 shows stronger tool integration and instruction following.
+```
 
 > **This is a multi-step, stateful workflow with routing, coordination, and resilience — without writing orchestration code.**
+
+⭐ **If this saves you time, consider [starring the repo](https://github.com/datallmhub/spring-agent-flow).**
 
 ---
 
@@ -65,6 +83,47 @@ Spring AI gives you primitives.
 
 ---
 
+## 🧠 Two levels of control
+
+### Level 1 — Squad API (recommended)
+
+Dynamic routing, minimal setup. A `CoordinatorAgent` routes to `ExecutorAgent`s — you focus on the agents, not the plumbing.
+
+```java
+CoordinatorAgent coordinator = CoordinatorAgent.builder()
+        .executors(Map.of(
+            "research", researchExecutor,
+            "analysis", analysisExecutor,
+            "writing",  writingExecutor
+        ))
+        .routingStrategy(RoutingStrategy.llmDriven(chatClient))
+        .build();
+
+AgentResult result = coordinator.execute(AgentContext.of("..."));
+```
+
+### Level 2 — Graph API
+
+Explicit flows, loops, conditions, full control.
+
+```java
+AgentGraph graph = AgentGraph.builder()
+        .addNode("research", researcher)
+        .addNode("analyze",  analyzer)
+        .addNode("write",    writer)
+        .addEdge("research", "analyze")
+        .addEdge(Edge.conditional("analyze",
+                ctx -> ctx.get(CONFIDENCE).doubleValue() < 0.7,
+                "research"))                               // loop back
+        .addEdge("analyze", "write")                       // fallback: forward
+        .errorPolicy(ErrorPolicy.RETRY_ONCE)
+        .build();
+
+AgentResult result = graph.invoke(AgentContext.of("..."));
+```
+
+---
+
 ## 🧭 When should I use this?
 
 **Use it if:**
@@ -80,7 +139,19 @@ Spring AI gives you primitives.
 
 ---
 
-## ⚔️ Why not just Spring AI?
+## ⚔️ Why not just Spring AI or simple loops?
+
+| Approach | Limitation |
+|---|---|
+| Spring AI alone | Low-level primitives only — you write the orchestration |
+| Manual `while` loops | Don't scale, retries are hard, state becomes fragile |
+| LangChain-style flows | Limited execution control, Python-first |
+
+**spring-agent-flow provides:**
+
+- explicit execution graphs
+- built-in resilience (retry + circuit breaker)
+- durable, typed state
 
 | Spring AI | spring-agent-flow |
 |---|---|
@@ -89,22 +160,6 @@ Spring AI gives you primitives.
 | No durable state | Typed shared state + checkpoints |
 | Retry logic in user code | Built-in retry + circuit breaker |
 | No resume | Interrupt + resume support |
-
----
-
-## ⚔️ Why not loops or LangChain-style flows?
-
-Because:
-
-- loops don't scale
-- retries are hard
-- state becomes fragile
-
-spring-agent-flow gives you:
-
-- explicit execution graphs
-- resilience by default
-- durable, typed state
 
 ---
 
@@ -131,12 +186,6 @@ The project ships with ready-to-run examples — no LLM required.
 
 👉 Start with `MultiAgentCoordination` — it demonstrates the full power of the framework.
 
-Run all samples:
-
-```bash
-mvn -pl spring-agent-flow-samples exec:java
-```
-
 ---
 
 ## 🧩 What you get
@@ -155,6 +204,8 @@ mvn -pl spring-agent-flow-samples exec:java
 ## 🧱 Architecture
 
 ![Modules Architecture](docs/images/modules-architecture.png)
+
+> Layered architecture showing coordination, execution, resilience, and persistence on top of Spring AI.
 
 ---
 
@@ -216,47 +267,6 @@ spring:
       default-error-policy: RETRY_ONCE
       observability:
         metrics: true
-```
-
----
-
-## 🧠 Two levels of control
-
-### Level 1 — Squad API (recommended)
-
-Dynamic routing, minimal setup. A `CoordinatorAgent` routes to `ExecutorAgent`s — you focus on the agents, not the plumbing.
-
-```java
-CoordinatorAgent coordinator = CoordinatorAgent.builder()
-        .executors(Map.of(
-            "research", researchExecutor,
-            "analysis", analysisExecutor,
-            "writing",  writingExecutor
-        ))
-        .routingStrategy(RoutingStrategy.llmDriven(chatClient))
-        .build();
-
-AgentResult result = coordinator.execute(AgentContext.of("..."));
-```
-
-### Level 2 — Graph API
-
-Explicit flows, loops, conditions, full control.
-
-```java
-AgentGraph graph = AgentGraph.builder()
-        .addNode("research", researcher)
-        .addNode("analyze",  analyzer)
-        .addNode("write",    writer)
-        .addEdge("research", "analyze")
-        .addEdge(Edge.conditional("analyze",
-                ctx -> ctx.get(CONFIDENCE).doubleValue() < 0.7,
-                "research"))                               // loop back
-        .addEdge("analyze", "write")                       // fallback: forward
-        .errorPolicy(ErrorPolicy.RETRY_ONCE)
-        .build();
-
-AgentResult result = graph.invoke(AgentContext.of("..."));
 ```
 
 ---
@@ -389,7 +399,3 @@ This project follows the [Apache 2.0 License](LICENSE).
 - [CrewAI](https://github.com/joaomdmoura/crewai) — role-based agent teams
 - [AWS Strands](https://github.com/strands-agents/sdk-java) — agent patterns for Java
 - [Spring AI](https://github.com/spring-projects/spring-ai) — the foundation we build on
-
----
-
-⭐ **If this saves you time, consider starring the repo**
