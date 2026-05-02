@@ -37,6 +37,8 @@ System.out.println(result.text());
 
 👉 No loops. No routing logic. Just agents collaborating.
 
+> **This is a multi-step, stateful workflow with routing, coordination, and resilience — without writing orchestration code.**
+
 ---
 
 ## 🧠 Why this exists
@@ -45,10 +47,10 @@ Real-world AI systems are not one LLM call.
 
 They are:
 
-- multi-step
-- stateful
-- failure-prone
-- long-running
+- **multi-step**
+- **stateful**
+- **failure-prone**
+- **long-running**
 
 Spring AI gives you primitives.
 **spring-agent-flow gives you a runtime.**
@@ -58,6 +60,8 @@ Spring AI gives you primitives.
 ## 📊 How it works
 
 ![How it works](docs/images/demo.png)
+
+> A coordinator routes tasks across agents, executing a graph with shared state, retries, and checkpoints.
 
 ---
 
@@ -70,7 +74,7 @@ Spring AI gives you primitives.
 - failures (retry, resume, rate limits) matter
 - multiple agents must coordinate
 
-**Don't use it if:**
+**Avoid it if:**
 
 - you just call `ChatClient` once
 
@@ -104,7 +108,7 @@ spring-agent-flow gives you:
 
 ---
 
-## 🚀 Try it now (no LLM required)
+## 🚀 Try it in 30 seconds (no API key required)
 
 ```bash
 git clone https://github.com/datallmhub/spring-agent-flow.git
@@ -112,6 +116,8 @@ cd spring-agent-flow
 mvn install -DskipTests -q
 mvn -pl spring-agent-flow-samples exec:java
 ```
+
+👉 Runs a real multi-agent workflow with routing, coordination, and state — fully simulated.
 
 ## 📦 Samples included
 
@@ -123,6 +129,8 @@ The project ships with ready-to-run examples — no LLM required.
 | `MinimalPipeline` | Simple 2-step workflow using AgentGraph | `-Dexec.mainClass="...MinimalPipeline"` |
 | `AdvancedGraphDemo` | Loops, conditions, state, listeners | `-Dexec.mainClass="...AdvancedGraphDemo"` |
 
+👉 Start with `MultiAgentCoordination` — it demonstrates the full power of the framework.
+
 Run all samples:
 
 ```bash
@@ -133,6 +141,7 @@ mvn -pl spring-agent-flow-samples exec:java
 
 ## 🧩 What you get
 
+- ⚡ No orchestration code required
 - 🧠 Stateful agent workflows
 - 🔁 Built-in retries & circuit breakers
 - 📊 Graph-based execution
