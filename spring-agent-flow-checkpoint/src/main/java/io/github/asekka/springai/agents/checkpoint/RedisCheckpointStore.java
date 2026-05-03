@@ -8,7 +8,7 @@ import io.github.asekka.springai.agents.graph.Checkpoint;
 import io.github.asekka.springai.agents.graph.CheckpointStore;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Redis-backed {@link CheckpointStore}. Each run is stored under
